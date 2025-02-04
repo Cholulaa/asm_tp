@@ -39,7 +39,14 @@ exit_error:
     syscall
 
 str_to_int:
-    xor rax, rax      
+    xor rax, rax       
+    xor rcx, rcx       
+    movzx rdx, byte [rsi]
+    cmp rdx, '-'       
+    jne .loop          
+    inc rsi            
+    mov rcx, 1         
+
 .loop:
     movzx rdx, byte [rsi]  
     test rdx, rdx      
@@ -54,6 +61,11 @@ str_to_int:
     inc rsi            
     jmp .loop
 .done:
+    test rcx, rcx      
+    jz .positive       
+    neg rax            
+
+.positive:
     ret
 
 int_to_str:
@@ -61,6 +73,12 @@ int_to_str:
     mov rcx, result+19
     mov byte [rcx], 10
     dec rcx
+    test rax, rax     
+    jns .reverse      
+    neg rax           
+    mov byte [rcx], '-'  
+    dec rcx           
+
 .reverse:
     xor rdx, rdx      
     div rbx           
