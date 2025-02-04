@@ -1,14 +1,15 @@
 section .data
-    message db "1337", 0x0A
+    message db '1337', 0xA
+    len equ $ - message
 
 section .text
-global _start
+    global _start
 
 _start:
     mov rax, 1
     mov rdi, 1
-    lea rsi, [message]
-    mov rdx, 5
+    mov rsi, message
+    mov rdx, len
     syscall
 
     mov rax, 60
