@@ -1,67 +1,76 @@
-section .data
-    user_input db "Enter a number: ", 10
-        
 section .bss
-    nombre resb 6
+    result resb 20  
 
 section .text
     global _start
 
 _start:
-    mov eax, 1
-    mov edi, 1
-    mov esi, user_input
-    mov edx, 17
-    syscall 
+    mov rsi, [rsp+16]  
+    test rsi, rsi      
+    jz exit_error      
 
-   mov eax, 0
-   mov edi, 0
-   mov esi, nombre
-   mov edx, 6
-   syscall
+    mov rdi, [rsp+24]  
+    test rdi, rdi      
+    jz exit_error      
 
-sub eax, 1
-mov ecx, eax
-lea esi, [nombre]
+    call str_to_int    
+    mov rbx, rax       
 
- xor edi, edi
+    mov rsi, rdi       
+    call str_to_int    
 
+    add rax, rbx       
 
- convert_loop:
-   xor eax, eax
-   movzx eax, byte [esi]
-   sub eax, '0'
-   cmp eax, 10
-   jae done
-   imul edi, edi, 10
-   add  edi, eax
-   inc esi
-    loop convert_loop
+    mov rsi, result    
+    call int_to_str    
 
-done:
-  cmp edi, 2
-  jb not_prime
-  je is_prime
-  mov ecx, edi
-  shr ecx, 1
-  mov esi, 2
+    mov rax, 1         
+    mov rdi, 1         
+    syscall
 
-check_divisibility:
-   mov eax, edi
-    xor edx, edx
-    div esi
-    cmp edx, 0
-    je not_prime
-    inc esi
-    cmp esi, ecx
-    jbe check_divisibility
+exit_success:
+    mov rax, 60        
+    xor rdi, rdi       
+    syscall
 
-is_prime:
- mov eax, 60
- mov edi, 0
- syscall
+exit_error:
+    mov rax, 60        
+    mov rdi, 1         
+    syscall
 
- not_prime:
-mov eax, 60
-mov edi, 1
-syscall   
+str_to_int:
+    xor rax, rax      
+.loop:
+    movzx rdx, byte [rsi]  
+    test rdx, rdx      
+    jz .done
+    cmp rdx, '0'       
+    jl exit_error
+    cmp rdx, '9'       
+    jg exit_error
+    sub rdx, '0'       
+    imul rax, rax, 10  
+    add rax, rdx       
+    inc rsi            
+    jmp .loop
+.done:
+    ret
+
+int_to_str:
+    mov rbx, 10       
+    mov rcx, result+19
+    mov byte [rcx], 10
+    dec rcx
+.reverse:
+    xor rdx, rdx      
+    div rbx           
+    add dl, '0'       
+    mov [rcx], dl     
+    dec rcx           
+    test rax, rax     
+    jnz .reverse
+    inc rcx           
+    mov rsi, rcx      
+    mov rdx, result+20
+    sub rdx, rcx      
+    ret
