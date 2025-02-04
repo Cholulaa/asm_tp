@@ -1,5 +1,3 @@
-;commit
-
 section .bss
     result resb 20  
 
@@ -36,7 +34,7 @@ exit_success:
 
 exit_error:
     mov rax, 60        
-    xor rdi, rdi       
+    mov rdi, 1         
     syscall
 
 str_to_int:
@@ -77,8 +75,8 @@ int_to_str:
     test rax, rax     
     jns .reverse      
     neg rax           
-    dec rcx           
     mov byte [rcx], '-'  
+    dec rcx           
 
 .reverse:
     xor rdx, rdx      
