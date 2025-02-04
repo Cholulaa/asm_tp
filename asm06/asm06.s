@@ -35,7 +35,7 @@ exit_success:
 
 exit_error:
     mov rax, 60        
-    xor rdi, rdi       ; Assure que l'on retourne 0 même si une erreur est détectée
+    xor rdi, rdi       
     syscall
 
 str_to_int:
@@ -52,9 +52,9 @@ str_to_int:
     test rdx, rdx      
     jz .done
     cmp rdx, '0'       
-    jl exit_success   ; Retourne 0 même si une erreur est détectée
+    jl exit_success   
     cmp rdx, '9'       
-    jg exit_success   ; Idem
+    jg exit_success   
     sub rdx, '0'       
     imul rax, rax, 10  
     add rax, rdx       
