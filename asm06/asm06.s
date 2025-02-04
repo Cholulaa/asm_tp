@@ -5,13 +5,12 @@ section .text
     global _start
 
 _start:
-    mov rsi, [rsp+16]  
-    test rsi, rsi      
-    jz exit_error      
+    mov rdi, [rsp]      
+    cmp rdi, 3          
+    jl exit_error       
 
+    mov rsi, [rsp+16]  
     mov rdi, [rsp+24]  
-    test rdi, rdi      
-    jz exit_error      
 
     call str_to_int    
     mov rbx, rax       
@@ -35,7 +34,7 @@ exit_success:
 
 exit_error:
     mov rax, 60        
-    mov rdi, 0         ; Correction: exit toujours 0 pour les nombres négatifs
+    xor rdi, rdi       
     syscall
 
 str_to_int:
