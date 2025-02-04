@@ -35,7 +35,7 @@ exit_success:
 
 exit_error:
     mov rax, 60        
-    xor rdi, rdi       
+    mov rdi, 0         ; Correction: exit toujours 0 pour les nombres négatifs
     syscall
 
 str_to_int:
@@ -52,9 +52,9 @@ str_to_int:
     test rdx, rdx      
     jz .done
     cmp rdx, '0'       
-    jl exit_success   
+    jl exit_error   
     cmp rdx, '9'       
-    jg exit_success   
+    jg exit_error   
     sub rdx, '0'       
     imul rax, rax, 10  
     add rax, rdx       
@@ -76,8 +76,8 @@ int_to_str:
     test rax, rax     
     jns .reverse      
     neg rax           
-    mov byte [rcx], '-'  
     dec rcx           
+    mov byte [rcx], '-'  
 
 .reverse:
     xor rdx, rdx      
