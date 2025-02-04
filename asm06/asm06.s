@@ -1,3 +1,5 @@
+;commit
+
 section .bss
     result resb 20  
 
@@ -5,93 +7,89 @@ section .text
     global _start
 
 _start:
-    mov rdi, [rsp]      ; Get the number of arguments
-    cmp rdi, 3          ; Check if there are exactly 2 arguments (program name + 2 args)
-    jl exit_error       ; If not, exit with an error
+    mov rdi, [rsp]      
+    cmp rdi, 3          
+    jl exit_error       
 
-    mov rsi, [rsp+16]   ; Get the first argument (argv[1])
-    mov rdi, [rsp+24]   ; Get the second argument (argv[2])
+    mov rsi, [rsp+16]  
+    mov rdi, [rsp+24]  
 
-    call str_to_int     ; Convert the first argument to an integer
-    mov rbx, rax        ; Store the result in rbx
+    call str_to_int    
+    mov rbx, rax       
 
-    mov rsi, rdi        ; Move the second argument to rsi
-    call str_to_int     ; Convert the second argument to an integer
+    mov rsi, rdi       
+    call str_to_int    
 
-    add rax, rbx        ; Add the two integers
+    add rax, rbx       
 
-    mov rsi, result     ; Point rsi to the result buffer
-    call int_to_str     ; Convert the result to a string
+    mov rsi, result    
+    call int_to_str    
 
-    ; Print the result
-    mov rax, 1          ; syscall: write
-    mov rdi, 1          ; file descriptor: stdout
-    mov rsi, result     ; buffer to write
-    mov rdx, 20         ; maximum length
+    mov rax, 1         
+    mov rdi, 1         
     syscall
 
 exit_success:
-    mov rax, 60         ; syscall: exit
-    xor rdi, rdi        ; exit code: 0
+    mov rax, 60        
+    xor rdi, rdi       
     syscall
 
 exit_error:
-    mov rax, 60         ; syscall: exit
-    mov rdi, 1          ; exit code: 1
+    mov rax, 60        
+    xor rdi, rdi       
     syscall
 
 str_to_int:
-    xor rax, rax        ; Clear rax (result)
-    xor rcx, rcx        ; Clear rcx (negative flag)
-    movzx rdx, byte [rsi] ; Load the first character
-    cmp rdx, '-'        ; Check if the number is negative
-    jne .loop           ; If not, proceed to the loop
-    inc rsi             ; Skip the '-' character
-    mov rcx, 1          ; Set the negative flag
+    xor rax, rax       
+    xor rcx, rcx       
+    movzx rdx, byte [rsi]
+    cmp rdx, '-'       
+    jne .loop          
+    inc rsi            
+    mov rcx, 1         
 
 .loop:
-    movzx rdx, byte [rsi] ; Load the next character
-    test rdx, rdx       ; Check for null terminator
+    movzx rdx, byte [rsi]  
+    test rdx, rdx      
     jz .done
-    cmp rdx, '0'        ; Check if the character is a digit
-    jl exit_error       ; If not, exit with an error
-    cmp rdx, '9'        ; Check if the character is a digit
-    jg exit_error       ; If not, exit with an error
-    sub rdx, '0'        ; Convert the character to a digit
-    imul rax, rax, 10   ; Multiply the result by 10
-    add rax, rdx        ; Add the digit to the result
-    inc rsi             ; Move to the next character
+    cmp rdx, '0'       
+    jl exit_error   
+    cmp rdx, '9'       
+    jg exit_error   
+    sub rdx, '0'       
+    imul rax, rax, 10  
+    add rax, rdx       
+    inc rsi            
     jmp .loop
-
 .done:
-    test rcx, rcx       ; Check if the number is negative
-    jz .positive        ; If not, return the result
-    neg rax             ; Negate the result
+    test rcx, rcx      
+    jz .positive       
+    neg rax            
 
 .positive:
     ret
 
 int_to_str:
-    mov rbx, 10         ; Base 10
-    mov rcx, result+19  ; Point to the end of the buffer
-    mov byte [rcx], 10  ; Add a newline character
-    dec rcx             ; Move back one position
-    test rax, rax       ; Check if the number is negative
-    jns .reverse        ; If not, proceed to reverse
-    neg rax             ; Negate the number
-    dec rcx             ; Move back one position
-    mov byte [rcx], '-' ; Add a '-' character
+    mov rbx, 10       
+    mov rcx, result+19
+    mov byte [rcx], 10
+    dec rcx
+    test rax, rax     
+    jns .reverse      
+    neg rax           
+    dec rcx           
+    mov byte [rcx], '-'  
 
 .reverse:
-    xor rdx, rdx        ; Clear rdx
-    div rbx             ; Divide rax by 10
-    add dl, '0'         ; Convert the remainder to a character
-    mov [rcx], dl       ; Store the character
-    dec rcx             ; Move back one position
-    test rax, rax       ; Check if there are more digits
-    jnz .reverse        ; If so, repeat
-    inc rcx             ; Move to the start of the string
-    mov rsi, rcx        ; Point rsi to the start of the string
-    mov rdx, result+20  ; Calculate the length of the string
-    sub rdx, rcx        ; Subtract the start position
+    xor rdx, rdx      
+    div rbx           
+    add dl, '0'       
+    mov [rcx], dl     
+    dec rcx           
+    test rax, rax     
+    jnz .reverse
+    inc rcx           
+    mov rsi, rcx      
+    mov rdx, result+20
+    sub rdx, rcx      
     ret
