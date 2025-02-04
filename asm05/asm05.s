@@ -2,9 +2,9 @@ section .text
     global _start
 
 _start:
-    mov rsi, [rsp+8]  
-    test rsi, rsi     
-    jz exit           
+    mov rsi, [rsp+16]  
+    test rsi, rsi      
+    jz exit_error      
 
     call string_length 
 
@@ -12,9 +12,14 @@ _start:
     mov rdi, 1        
     syscall
 
-exit:
+exit_success:
     mov rax, 60       
     xor rdi, rdi      
+    syscall
+
+exit_error:
+    mov rax, 60       
+    mov rdi, 1        
     syscall
 
 string_length:
