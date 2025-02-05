@@ -1,93 +1,74 @@
-section .bss
-    result resb 20  
+section .data
+buffer: times 32 db 0
 
 section .text
-    global _start
+global _start
 
 _start:
-    mov rdi, [rsp]      
-    cmp rdi, 3          
-    jl exit_error       
-
-    mov rsi, [rsp+16]  
-    mov rdi, [rsp+24]  
-
-    call str_to_int    
-    mov rbx, rax       
-
-    mov rsi, rdi       
-    call str_to_int    
-
-    add rax, rbx       
-
-    mov rsi, result    
-    call int_to_str    
-
-    mov rax, 1         
-    mov rdi, 1         
-    syscall
-
-exit_success:
-    mov rax, 60        
-    xor rdi, rdi       
+    mov rsi, [rsp+16]
+    test rsi, rsi
+    jz exit_error
+    mov rdi, [rsp+24]
+    test rdi, rdi
+    jz exit_error
+    call parse_int
+    mov rbx, rax
+    mov rsi, rdi
+    call parse_int
+    add rax, rbx
+    call print_int
+    mov rax, 60
+    xor rdi, rdi
     syscall
 
 exit_error:
-    mov rax, 60        
-    mov rdi, 1         
+    mov rax, 60
+    mov rdi, 1
     syscall
 
-str_to_int:
-    xor rax, rax       
-    xor rcx, rcx       
-    movzx rdx, byte [rsi]
-    cmp rdx, '-'       
-    jne .loop          
-    inc rsi            
-    mov rcx, 1         
-
-.loop:
-    movzx rdx, byte [rsi]  
-    test rdx, rdx      
-    jz .done
-    cmp rdx, '0'       
-    jl exit_error   
-    cmp rdx, '9'       
-    jg exit_error   
-    sub rdx, '0'       
-    imul rax, rax, 10  
-    add rax, rdx       
-    inc rsi            
-    jmp .loop
+parse_int:
+    xor rax, rax
+    xor rcx, rcx
+.parse_loop:
+    mov cl, [rsi]
+    test cl, cl
+    je .done
+    sub cl, '0'
+    imul rax, rax, 10
+    add rax, rcx
+    inc rsi
+    jmp .parse_loop
 .done:
-    test rcx, rcx      
-    jz .positive       
-    neg rax            
-
-.positive:
     ret
 
-int_to_str:
-    mov rbx, 10       
-    mov rcx, result+19
-    mov byte [rcx], 10
-    dec rcx
-    test rax, rax     
-    jns .reverse      
-    neg rax           
-    mov byte [rcx], '-'  
-    dec rcx           
-
-.reverse:
-    xor rdx, rdx      
-    div rbx           
-    add dl, '0'       
-    mov [rcx], dl     
-    dec rcx           
-    test rax, rax     
-    jnz .reverse
-    inc rcx           
-    mov rsi, rcx      
-    mov rdx, result+20
-    sub rdx, rcx      
+print_int:
+    mov rbx, rax
+    cmp rbx, 0
+    jne .convert
+    mov byte [buffer], '0'
+    mov rdx, 1
+    jmp .write_out
+.convert:
+    mov rdi, buffer
+    add rdi, 31
+    xor rcx, rcx
+.convert_loop:
+    xor rdx, rdx
+    mov rax, rbx
+    mov r8, 10
+    div r8
+    mov rbx, rax
+    add rdx, '0'
+    mov byte [rdi], dl
+    dec rdi
+    test rbx, rbx
+    jnz .convert_loop
+    add rdi, 1
+    mov rsi, rdi
+    mov rdx, buffer+32
+    sub rdx, rdi
+.write_out:
+    mov rax, 1
+    mov rdi, 1
+    syscall
     ret
