@@ -4,53 +4,58 @@ buffer: times 64 db 0
 section .text
 global _start
 
-; asm08 : somme des entiers < n
+; asm08: Somme des entiers < n
 ; Exemples:
-;  ./asm08 5   => 1+2+3+4 = 10
-;  ./asm08 10  => 1..9 => 45
-;  ./asm08 1   => 0
-;  ./asm08 0   => 0
+;   ./asm08 5   => 1+2+3+4 = 10
+;   ./asm08 1   => 0
+;   ./asm08 10  => 45
+; Retourne 0 en cas de succès, ou 1 s'il y a une erreur (ex: pas de param).
 
 _start:
-    mov rsi, [rsp+16]    ; pointer to argv[1]
+    ; Vérifie qu'on a un paramètre (argv[1])
+    mov rsi, [rsp+16]
     test rsi, rsi
-    jz error             ; if no param => exit(1)
+    jz error
 
-    call parse           ; RAX = parsed integer
-    test rax, rax
-    jle zero             ; if <= 0 => sum = 0
+    ; Parse l'entier => RAX
+    call parse
+
+    ; Si n <= 1 => somme = 0
     cmp rax, 2
-    jb zero              ; if 1 => sum = 0
+    jb .zero
 
-    ; sum(1..(n-1)) = n*(n-1)/2
-    ; RAX = n
+    ; Sinon somme(1..(n-1)) = n*(n-1)/2
     mov rbx, rax
-    dec rbx              ; RBX = n-1
-    mul rbx              ; RDX:RAX = n*(n-1)
+    dec rbx
+    mul rbx       ; RDX:RAX = n*(n-1)
     xor rdx, rdx
     mov rcx, 2
-    div rcx              ; RAX = (n*(n-1))/2
+    div rcx       ; RAX = (n*(n-1))/2
+    jmp .print
 
-zero:
+.zero:
+    xor rax, rax
+
+.print:
     call print
     mov rax, 60
-    xor rdi, rdi         ; exit(0)
+    xor rdi, rdi
     syscall
 
 error:
     mov rax, 60
-    mov rdi, 1           ; exit(1)
+    mov rdi, 1
     syscall
 
-; ------------------------------------------------------------------------------
+; -----------------------------------------------------------------------------
 ; parse:
-;   RSI points to a C-string with the ASCII decimal number
-;   Return value in RAX (>= 0).
-;   Stops on end of string or newline. Anything non-digit ends parsing.
-; ------------------------------------------------------------------------------
+;   RSI => pointeur sur argv[1]
+;   RAX => l'entier parsé (>= 0)
+;   Si pas de digit, on renvoie 0 comme fallback (pour éviter un exit(1) forcé)
+; -----------------------------------------------------------------------------
 parse:
     xor rax, rax
-.p_loop:
+.parse_loop:
     mov dl, [rsi]
     test dl, dl
     jz .done
@@ -63,14 +68,14 @@ parse:
     imul rax, rax, 10
     add rax, rdx
     inc rsi
-    jmp .p_loop
+    jmp .parse_loop
 .done:
     ret
 
-; ------------------------------------------------------------------------------
+; -----------------------------------------------------------------------------
 ; print:
-;   Prints RAX as a decimal number to stdout
-; ------------------------------------------------------------------------------
+;   Affiche RAX en ASCII (décimal) sur stdout
+; -----------------------------------------------------------------------------
 print:
     test rax, rax
     jnz .convert
@@ -82,17 +87,17 @@ print:
 .convert:
     mov rbx, rax
     lea rdi, [buffer+63]
-.convert_loop:
+.conv_loop:
     xor rdx, rdx
     mov rax, rbx
     mov rcx, 10
-    div rcx             ; RAX=quotient, RDX=remainder
+    div rcx
     mov rbx, rax
     add rdx, '0'
     mov byte [rdi], dl
     dec rdi
     test rbx, rbx
-    jnz .convert_loop
+    jnz .conv_loop
     inc rdi
     mov rsi, rdi
     mov rdx, buffer+64
