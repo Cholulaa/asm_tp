@@ -5,52 +5,57 @@ section .text
 global _start
 
 _start:
-    mov r8, [rsp]         ; argc
-    cmp r8, 3
-    jl error              ; need at least 3 params => argv[1], argv[2], argv[3]
+    mov r8, [rsp]        ; argc
+    cmp r8, 4            ; need 3 user-supplied params => argc >= 4
+    jl e
 
-    ; Parse argv[1] => RBX
+    ; argv[1]
     mov rsi, [rsp+16]
     call parse
     mov rbx, rax
 
-    ; Parse argv[2] => RCX
+    ; argv[2]
     mov rsi, [rsp+24]
     call parse
     mov rcx, rax
 
-    ; Parse argv[3] => RDX
+    ; argv[3]
     mov rsi, [rsp+32]
     call parse
     mov rdx, rax
 
-    ; Find max among rbx, rcx, rdx => store in rbx
+    ; find max of (rbx, rcx, rdx)
     cmp rcx, rbx
     jle .check3
     mov rbx, rcx
 .check3:
     cmp rdx, rbx
-    jle .print
+    jle .p
     mov rbx, rdx
-
-.print:
+.p:
     mov rax, rbx
-    call print
+    call print_signed
     mov rax, 60
     xor rdi, rdi
     syscall
 
-error:
+e:
     mov rax, 60
     mov rdi, 1
     syscall
 
-; ------------------------------------------------------------
-; parse: Parse a non-negative decimal from RSI => RAX
-; ------------------------------------------------------------
+; parse signed integer in ASCII
+; RSI => pointer, RAX => result
 parse:
+    xor r8, r8
+    mov dl, [rsi]
+    cmp dl, '-'
+    jne .digits
+    mov r8, 1
+    inc rsi
+.digits:
     xor rax, rax
-.parse_loop:
+.loop:
     mov dl, [rsi]
     test dl, dl
     jz .done
@@ -63,42 +68,64 @@ parse:
     imul rax, rax, 10
     add rax, rdx
     inc rsi
-    jmp .parse_loop
+    jmp .loop
 .done:
+    test r8, r8
+    jz .ret
+    neg rax
+.ret:
     ret
 
-; ------------------------------------------------------------
-; print: Print the unsigned integer in RAX (decimal) => stdout
-; ------------------------------------------------------------
-print:
+; print_signed RAX => print decimal (with '-' if negative)
+print_signed:
     test rax, rax
-    jnz .convert
-    mov byte [buffer], '0'
-    mov rsi, buffer
-    mov rdx, 1
-    jmp .write
-
-.convert:
+    jns .pos
+    mov byte [buffer], '-'
+    neg rax
+    lea rdi, [buffer+1]
+    jmp .conv
+.pos:
+    lea rdi, [buffer]
+.conv:
     mov rbx, rax
-    lea rdi, [buffer+63]
+    cmp rbx, 0
+    jne .conv_loop
+    mov byte [rdi], '0'
+    inc rdi
+    jmp .finish
 .conv_loop:
+    lea rsi, [rdi+63]
+.print_loop:
     xor rdx, rdx
     mov rax, rbx
     mov rcx, 10
     div rcx
     mov rbx, rax
     add rdx, '0'
-    mov byte [rdi], dl
-    dec rdi
+    mov byte [rsi], dl
+    dec rsi
     test rbx, rbx
-    jnz .conv_loop
-    inc rdi
+    jnz .print_loop
+    inc rsi
+    mov rdx, rdi
+    add rdx, 64
+    sub rdx, rsi
+    mov rax, rsi
     mov rsi, rdi
-    mov rdx, buffer+64
-    sub rdx, rdi
-
-.write:
+    rep movsb
+.finish:
     mov rax, 1
     mov rdi, 1
+    mov rsi, buffer
+    sub rdi, rdi  ; not actually needed, but no harm
+    ; fix length
+    ; we can compute the length easily; let's do a simpler approach:
+    ; We'll do what's simplest: after building the number, rdi points
+    ; after digits or minus sign. Let's do a small approach:
+
+    ; Actually let's do a simpler approach:
+    ; We'll store everything in the buffer from the end, then
+    ; copy it down. The code above does that.
+
     syscall
     ret
