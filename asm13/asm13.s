@@ -4,55 +4,39 @@ buffer: times 64 db 0
 section .text
 global _start
 
-; asm13 : Vérifier si la chaîne lue sur stdin est un palindrome
-; Retourne 0 si palindrome, 1 sinon.
-; Ex.:
-;   echo "radar"   | ./asm13 ; echo $?  => 0
-;   echo "bonjour" | ./asm13 ; echo $?  => 1
-
 _start:
-    ; sys_read(0, buffer, 64)
-    xor rax, rax        ; rax = 0 => sys_read
-    mov rdi, rax        ; fd = 0 (stdin)
+    xor rax, rax
+    mov rdi, rax
     mov rsi, buffer
     mov rdx, 64
-    syscall             ; RAX = nombre d'octets lus
-
-    mov rcx, rax        ; rcx = longueur lue
+    syscall
+    mov rcx, rax
     test rcx, rcx
-    jz palindrome       ; si 0 octet => palindrome => exit(0)
-
-    ; Vérifier si le dernier caractère est un '\n'
-    ; => si [buffer + (rcx - 1)] = '\n', on ignore ce dernier
+    jz pal
     cmp byte [buffer + rcx - 1], 10
-    jne .skip_newline
+    jne skip
     dec rcx
     cmp rcx, 0
-    je palindrome       ; s'il ne reste plus rien => palindrome
-.skip_newline:
-
-    ; Indices : rsi = 0 (début), rdi = rcx - 1 (fin)
+    je pal
+skip:
     xor rsi, rsi
     mov rdi, rcx
     dec rdi
-
-compare_loop:
+loopcmp:
     cmp rsi, rdi
-    jge palindrome      ; si on a convergé => palindrome
+    jge pal
     mov al, [buffer + rsi]
     mov bl, [buffer + rdi]
     cmp al, bl
-    jne not_palindrome
+    jne np
     inc rsi
     dec rdi
-    jmp compare_loop
-
-palindrome:
+    jmp loopcmp
+pal:
     mov rax, 60
     xor rdi, rdi
     syscall
-
-not_palindrome:
+np:
     mov rax, 60
     mov rdi, 1
     syscall
