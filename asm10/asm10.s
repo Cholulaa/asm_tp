@@ -4,75 +4,47 @@ buffer: times 64 db 0
 section .text
 global _start
 
-; asm10 : Afficher le maximum de trois entiers signés passés en paramètres
-; Exemple :
-;   ./asm10 7 3 5   => 7
-;   ./asm10 -1 -2 -3 => -1
-;   ./asm10 5 5 5   => 5
-;   ./asm10 10 15 5 => 15
-; Si moins de 3 paramètres => exit code 1
-
-; Assemble & link:
-;   nasm -f elf64 asm10.asm -o asm10.o
-;   ld asm10.o -o asm10
-
 _start:
-    mov r8, [rsp]           ; argc
-    cmp r8, 4               ; besoin de 3 paramètres => argc >= 4 (argv[0]..argv[3])
-    jl err
-
-    ; Lire argv[1] => RBX
+    mov r8, [rsp]
+    cmp r8, 4
+    jl e
     mov rsi, [rsp+16]
     call parse
     mov rbx, rax
-
-    ; Lire argv[2] => RCX
     mov rsi, [rsp+24]
     call parse
     mov rcx, rax
-
-    ; Lire argv[3] => RDX
     mov rsi, [rsp+32]
     call parse
     mov rdx, rax
-
-    ; Comparer pour trouver le max
     cmp rcx, rbx
-    jle .check3
+    jle .c
     mov rbx, rcx
-.check3:
+.c:
     cmp rdx, rbx
-    jle .max_done
+    jle .m
     mov rbx, rdx
-.max_done:
-    ; RBX = max
+.m:
     mov rax, rbx
     call print_signed
-
-    ; exit(0)
     mov rax, 60
     xor rdi, rdi
     syscall
-
-err:
-    ; exit(1)
+e:
     mov rax, 60
     mov rdi, 1
     syscall
 
-; ------------------------------------------------------------------------
-; parse : lit un entier signé dans la chaîne RSI => RAX
-; ------------------------------------------------------------------------
 parse:
-    xor r8, r8         ; flag de signe
+    xor r8, r8
     mov dl, [rsi]
     cmp dl, '-'
-    jne .digits
+    jne d
     mov r8, 1
     inc rsi
-.digits:
+d:
     xor rax, rax
-.loop:
+l:
     mov dl, [rsi]
     test dl, dl
     jz .done
@@ -85,38 +57,33 @@ parse:
     imul rax, rax, 10
     add rax, rdx
     inc rsi
-    jmp .loop
+    jmp l
 .done:
     test r8, r8
-    jz .ret
+    jz r
     neg rax
-.ret:
+r:
     ret
 
-; ------------------------------------------------------------------------
-; print_signed : affiche RAX (entier signé) en decimal sur stdout
-; ------------------------------------------------------------------------
 print_signed:
     test rax, rax
-    jns .positive
+    jns .p
     mov byte [buffer], '-'
     neg rax
     lea rdi, [buffer+1]
-    jmp .convert
-.positive:
+    jmp c
+.p:
     lea rdi, [buffer]
-.convert:
-    ; On convertit la valeur absolue dans [rdi..]
+c:
     mov rcx, rax
     test rcx, rcx
-    jnz .has_value
+    jnz .v
     mov byte [rdi], '0'
     inc rdi
-    jmp .write
-.has_value:
-    ; On écrit les chiffres en sens inverse dans [buffer+63..] puis on pointera dessus
+    jmp w
+.v:
     lea rsi, [buffer+63]
-.loop_digits:
+lp:
     xor rdx, rdx
     mov rax, rcx
     mov r8, 10
@@ -126,27 +93,22 @@ print_signed:
     mov byte [rsi], dl
     dec rsi
     test rcx, rcx
-    jnz .loop_digits
+    jnz lp
     inc rsi
-
-    ; now [rsi..buffer+63] contient les digits inversés
-    ; on doit copier vers [rdi..] en ordre normal
-    ; longueur = (buffer+64) - rsi
     mov rax, buffer+64
-    sub rax, rsi         ; rax = nb de caractères
-.copy:
+    sub rax, rsi
+cp:
     mov dl, [rsi]
     mov [rdi], dl
     inc rdi
     inc rsi
     dec rax
-    jnz .copy
-
-.write:
-    mov rax, 1           ; sys_write
-    mov rsi, buffer      ; début du buffer
+    jnz cp
+w:
+    mov rax, 1
+    mov rsi, buffer
     sub rdi, buffer
-    mov rdx, rdi         ; longueur totale
-    mov rdi, 1           ; stdout
+    mov rdx, rdi
+    mov rdi, 1
     syscall
     ret
