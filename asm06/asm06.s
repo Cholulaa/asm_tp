@@ -11,12 +11,12 @@ _start:
     mov rdi, [rsp+24]
     test rdi, rdi
     jz e
-    call parse_int
+    call parse
     mov rbx, rax
     mov rsi, rdi
-    call parse_int
+    call parse
     add rax, rbx
-    call print_int
+    call printsigned
     mov rax, 60
     xor rdi, rdi
     syscall
@@ -26,71 +26,68 @@ e:
     mov rdi, 1
     syscall
 
-parse_int:
+parse:
     xor r8, r8
     mov dl, [rsi]
     cmp dl, '-'
-    jne .ps
+    jne s
     mov r8, 1
     inc rsi
-.ps:
+s:
     xor rax, rax
-.pi_loop:
+pl:
     mov dl, [rsi]
     test dl, dl
-    je .done
+    je ed
     sub dl, '0'
     imul rax, rax, 10
     add rax, rdx
     inc rsi
-    jmp .pi_loop
-.done:
+    jmp pl
+ed:
     test r8, r8
-    jz .ret
+    jz rt
     neg rax
-.ret:
+rt:
     ret
 
-print_int:
+printsigned:
     test rax, rax
     jns .pos
     mov byte [buffer], '-'
     neg rax
-    lea rsi, [buffer+1]
-    call convert_abs
-    jmp .wr
+    lea rdi, [buffer+1]
+    jmp .cv
 .pos:
-    lea rsi, [buffer]
-    call convert_abs
+    lea rdi, [buffer]
+.cv:
+    mov rcx, rax
+    cmp rcx, 0
+    jne .lp
+    mov byte [rdi], '0'
+    mov rdx, 1
+    jmp .wr
+.lp:
+    lea rsi, [rdi+63]
+.n:
+    xor rdx, rdx
+    mov rax, rcx
+    mov r8, 10
+    div r8
+    mov rcx, rax
+    add rdx, '0'
+    mov byte [rsi], dl
+    dec rsi
+    test rcx, rcx
+    jnz .n
+    inc rsi
+    mov rdx, rdi
+    add rdx, 64
+    sub rdx, rsi
+    mov rdi, rsi
 .wr:
     mov rax, 1
+    mov rsi, rdi
     mov rdi, 1
     syscall
-    ret
-
-convert_abs:
-    mov rbx, rax
-    cmp rbx, 0
-    jne .loop
-    mov byte [rsi], '0'
-    mov rdx, 1
-    ret
-.loop:
-    lea rdi, [rsi+31]
-.cv:
-    xor rdx, rdx
-    mov rax, rbx
-    mov rcx, 10
-    div rcx
-    mov rbx, rax
-    add rdx, '0'
-    mov byte [rdi], dl
-    dec rdi
-    test rbx, rbx
-    jnz .cv
-    inc rdi
-    mov rdx, rsi
-    add rdx, 32
-    sub rdx, rdi
-    mov rsi, rdi
     ret
