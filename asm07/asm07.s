@@ -1,88 +1,110 @@
 section .data
-buf: times 32 db 0
+buf:    times 32 db 0
 
 section .text
 global _start
 
-; Program:
-;  1) Reads up to 32 bytes from stdin into 'buf'
-;  2) parse() => RAX = integer
-;  3) if prime => return 0, else 1
-;  4) exit with that code
+; -----------------------------------------------------------
+; Reads up to 32 bytes from stdin => buf
+; parse => RAX = integer (>=0) or RAX = -1 on invalid input
+; if RAX = -1 => exit(2)
+; else if RAX < 2 => exit(1)
+; else prime => exit(0), not prime => exit(1)
+; -----------------------------------------------------------
 
 _start:
-    xor rax, rax        ; sys_read
-    mov rdi, rax        ; stdin = 0
+    ; sys_read(0, buf, 32)
+    xor rax, rax
+    mov rdi, rax
     mov rsi, buf
     mov rdx, 32
     syscall
 
+    ; parse => RAX = integer or -1 on error
     call parse
-    mov rdi, rax        ; store input in RDI for prime check
+    test rax, rax
+    js .invalid    ; if RAX < 0 => invalid input => exit(2)
 
-    ; is_prime(RDI) => RAX=0 if prime, 1 if not
-    call is_prime
-
-    ; sys_exit(RAX)
+    ; is_prime(RAX)
+    ; if <2 => not prime => exit(1)
+    cmp rax, 2
+    jb .not_prime
     mov rdi, rax
+    call is_prime
+    test rax, rax
+    jz .prime
+.not_prime:
     mov rax, 60
+    mov rdi, 1
+    syscall
+.prime:
+    mov rax, 60
+    xor rdi, rdi
+    syscall
+.invalid:
+    mov rax, 60
+    mov rdi, 2
     syscall
 
-; parse => RAX = integer from buf
+; -----------------------------------------------------------
+; parse:
+;   - consumes buf[] until NUL or newline
+;   - returns >=0 in RAX if valid, or -1 if invalid
+; -----------------------------------------------------------
 parse:
     xor rax, rax
-parse_loop:
+.p_loop:
     mov dl, [rsi]
     cmp dl, 0
-    je parse_done
+    je .done
     cmp dl, 10
-    je parse_done
+    je .done
     sub dl, '0'
-    jl parse_done
+    jl .err         ; anything below '0' => invalid => -1
     cmp dl, 9
-    jg parse_done
+    jg .err         ; anything above '9' => invalid => -1
     imul rax, rax, 10
     add rax, rdx
     inc rsi
-    jmp parse_loop
-parse_done:
+    jmp .p_loop
+.done:
+    ret
+.err:
+    mov rax, -1
     ret
 
+; -----------------------------------------------------------
 ; is_prime(RDI):
-;   RDI = input number
-;   RAX = 0 if prime, 1 if not
+;   Returns RAX=0 if prime, RAX=1 if not prime
+;   Naive method: test divisors 2..sqrt(n)
+; -----------------------------------------------------------
 is_prime:
-    cmp rdi, 2
-    jb  not_prime        ; <2 => not prime
-
-    ; We'll do a naive loop from 2..(RDI-1) or up to sqrt(RDI) (whichever).
-    ; For brevity, let's do up to sqrt(RDI).
-    ; We store RDI in RBX, use RCX as loop variable: 2.. up to sqrt(RBX)
-    mov rbx, rdi
+    mov rbx, rdi         ; number in rbx
     mov rcx, 2
-prime_loop:
+.loop:
     ; if rcx*rcx > rbx => prime
     mov rax, rcx
-    mul rcx              ; 128-bit multiply: RDX:RAX = RCX^2
+    mul rcx
+    ; rdx:rax = rcx^2
     cmp rdx, 0
-    jne prime_yes        ; overflow => definitely bigger than rbx => prime
+    jne .prime
     cmp rax, rbx
-    ja  prime_yes
+    ja  .prime
 
-    ; check divisibility
+    ; check if rbx % rcx == 0 => not prime
     mov rax, rbx
     xor rdx, rdx
     div rcx
     test rdx, rdx
-    jz not_prime         ; remainder=0 => not prime
+    jz .not_prime
 
     inc rcx
-    jmp prime_loop
+    jmp .loop
 
-prime_yes:
+.prime:
     xor rax, rax
     ret
 
-not_prime:
+.not_prime:
     mov rax, 1
     ret
