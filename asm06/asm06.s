@@ -1,5 +1,5 @@
 section .data
-buffer: times 32 db 0
+buffer: times 64 db 0
 
 section .text
 global _start
@@ -7,10 +7,10 @@ global _start
 _start:
     mov rsi, [rsp+16]
     test rsi, rsi
-    jz error
+    jz e
     mov rdi, [rsp+24]
     test rdi, rdi
-    jz error
+    jz e
     call parse_int
     mov rbx, rax
     mov rsi, rdi
@@ -21,7 +21,7 @@ _start:
     xor rdi, rdi
     syscall
 
-error:
+e:
     mov rax, 60
     mov rdi, 1
     syscall
@@ -30,21 +30,21 @@ parse_int:
     xor r8, r8
     mov dl, [rsi]
     cmp dl, '-'
-    jne .skip_sign
+    jne .ps
     mov r8, 1
     inc rsi
-.skip_sign:
+.ps:
     xor rax, rax
 .pi_loop:
     mov dl, [rsi]
     test dl, dl
-    je .end_parse
+    je .done
     sub dl, '0'
     imul rax, rax, 10
     add rax, rdx
     inc rsi
     jmp .pi_loop
-.end_parse:
+.done:
     test r8, r8
     jz .ret
     neg rax
@@ -53,38 +53,31 @@ parse_int:
 
 print_int:
     test rax, rax
-    jns .positive
-    mov rdi, buffer
-    mov byte [rdi], '-'
+    jns .pos
+    mov byte [buffer], '-'
     neg rax
-    inc rdi
-    push rdi
-    call print_abs
-    pop rdi
-    jmp .finish
-.positive:
-    mov rdi, buffer
-    push rdi
-    call print_abs
-    pop rdi
-.finish:
-    mov rdx, rax
+    lea rsi, [buffer+1]
+    call convert_abs
+    jmp .wr
+.pos:
+    lea rsi, [buffer]
+    call convert_abs
+.wr:
     mov rax, 1
     mov rdi, 1
-    mov rsi, buffer
     syscall
     ret
 
-print_abs:
+convert_abs:
     mov rbx, rax
     cmp rbx, 0
-    jne .convert
-    mov byte [rdi], '0'
-    add rdi, 1
-    jmp .done
-.convert:
-    add rdi, 31
-.pa_loop:
+    jne .loop
+    mov byte [rsi], '0'
+    mov rdx, 1
+    ret
+.loop:
+    lea rdi, [rsi+31]
+.cv:
     xor rdx, rdx
     mov rax, rbx
     mov rcx, 10
@@ -94,9 +87,10 @@ print_abs:
     mov byte [rdi], dl
     dec rdi
     test rbx, rbx
-    jnz .pa_loop
+    jnz .cv
     inc rdi
-.done:
-    mov rax, buffer+32
-    sub rax, rdi
+    mov rdx, rsi
+    add rdx, 32
+    sub rdx, rdi
+    mov rsi, rdi
     ret
