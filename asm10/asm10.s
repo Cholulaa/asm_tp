@@ -4,50 +4,67 @@ buffer: times 64 db 0
 section .text
 global _start
 
-_start:
-    mov r8, [rsp]        ; argc
-    cmp r8, 4            ; need 3 user-supplied params => argc >= 4
-    jl e
+; asm10 : Afficher le maximum de trois entiers signés passés en paramètres
+; Exemple :
+;   ./asm10 7 3 5   => 7
+;   ./asm10 -1 -2 -3 => -1
+;   ./asm10 5 5 5   => 5
+;   ./asm10 10 15 5 => 15
+; Si moins de 3 paramètres => exit code 1
 
-    ; argv[1]
+; Assemble & link:
+;   nasm -f elf64 asm10.asm -o asm10.o
+;   ld asm10.o -o asm10
+
+_start:
+    mov r8, [rsp]           ; argc
+    cmp r8, 4               ; besoin de 3 paramètres => argc >= 4 (argv[0]..argv[3])
+    jl err
+
+    ; Lire argv[1] => RBX
     mov rsi, [rsp+16]
     call parse
     mov rbx, rax
 
-    ; argv[2]
+    ; Lire argv[2] => RCX
     mov rsi, [rsp+24]
     call parse
     mov rcx, rax
 
-    ; argv[3]
+    ; Lire argv[3] => RDX
     mov rsi, [rsp+32]
     call parse
     mov rdx, rax
 
-    ; find max of (rbx, rcx, rdx)
+    ; Comparer pour trouver le max
     cmp rcx, rbx
     jle .check3
     mov rbx, rcx
 .check3:
     cmp rdx, rbx
-    jle .p
+    jle .max_done
     mov rbx, rdx
-.p:
+.max_done:
+    ; RBX = max
     mov rax, rbx
     call print_signed
+
+    ; exit(0)
     mov rax, 60
     xor rdi, rdi
     syscall
 
-e:
+err:
+    ; exit(1)
     mov rax, 60
     mov rdi, 1
     syscall
 
-; parse signed integer in ASCII
-; RSI => pointer, RAX => result
+; ------------------------------------------------------------------------
+; parse : lit un entier signé dans la chaîne RSI => RAX
+; ------------------------------------------------------------------------
 parse:
-    xor r8, r8
+    xor r8, r8         ; flag de signe
     mov dl, [rsi]
     cmp dl, '-'
     jne .digits
@@ -76,56 +93,60 @@ parse:
 .ret:
     ret
 
-; print_signed RAX => print decimal (with '-' if negative)
+; ------------------------------------------------------------------------
+; print_signed : affiche RAX (entier signé) en decimal sur stdout
+; ------------------------------------------------------------------------
 print_signed:
     test rax, rax
-    jns .pos
+    jns .positive
     mov byte [buffer], '-'
     neg rax
     lea rdi, [buffer+1]
-    jmp .conv
-.pos:
+    jmp .convert
+.positive:
     lea rdi, [buffer]
-.conv:
-    mov rbx, rax
-    cmp rbx, 0
-    jne .conv_loop
+.convert:
+    ; On convertit la valeur absolue dans [rdi..]
+    mov rcx, rax
+    test rcx, rcx
+    jnz .has_value
     mov byte [rdi], '0'
     inc rdi
-    jmp .finish
-.conv_loop:
-    lea rsi, [rdi+63]
-.print_loop:
+    jmp .write
+.has_value:
+    ; On écrit les chiffres en sens inverse dans [buffer+63..] puis on pointera dessus
+    lea rsi, [buffer+63]
+.loop_digits:
     xor rdx, rdx
-    mov rax, rbx
-    mov rcx, 10
-    div rcx
-    mov rbx, rax
+    mov rax, rcx
+    mov r8, 10
+    div r8
+    mov rcx, rax
     add rdx, '0'
     mov byte [rsi], dl
     dec rsi
-    test rbx, rbx
-    jnz .print_loop
+    test rcx, rcx
+    jnz .loop_digits
     inc rsi
-    mov rdx, rdi
-    add rdx, 64
-    sub rdx, rsi
-    mov rax, rsi
-    mov rsi, rdi
-    rep movsb
-.finish:
-    mov rax, 1
-    mov rdi, 1
-    mov rsi, buffer
-    sub rdi, rdi  ; not actually needed, but no harm
-    ; fix length
-    ; we can compute the length easily; let's do a simpler approach:
-    ; We'll do what's simplest: after building the number, rdi points
-    ; after digits or minus sign. Let's do a small approach:
 
-    ; Actually let's do a simpler approach:
-    ; We'll store everything in the buffer from the end, then
-    ; copy it down. The code above does that.
+    ; now [rsi..buffer+63] contient les digits inversés
+    ; on doit copier vers [rdi..] en ordre normal
+    ; longueur = (buffer+64) - rsi
+    mov rax, buffer+64
+    sub rax, rsi         ; rax = nb de caractères
+.copy:
+    mov dl, [rsi]
+    mov [rdi], dl
+    inc rdi
+    inc rsi
+    dec rax
+    jnz .copy
 
+.write:
+    mov rax, 1           ; sys_write
+    mov rsi, buffer      ; début du buffer
+    sub rdi, buffer
+    mov rdx, rdi         ; longueur totale
+    mov rdi, 1           ; stdout
     syscall
     ret
