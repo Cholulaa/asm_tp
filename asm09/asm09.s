@@ -5,35 +5,15 @@ bin_flag: db '-b', 0
 section .text
 global _start
 
-; asm09:
-;   Usage:
-;     ./asm09 [ -b ] <number>
-;   If "-b" is present, convert <number> to binary.
-;   Otherwise, convert <number> to hex (uppercase).
-;   Return 0 on success, or 1 on error.
-;
-; Examples:
-;   ./asm09 15      -> F
-;   ./asm09 -b 15   -> 1111
-
 _start:
-    ; [rsp+0]  = argc
-    ; [rsp+8]  = &argv[0]
-    ; [rsp+16] = &argv[1]
-    ; [rsp+24] = &argv[2]
-    ; ...
-
-    mov r8, [rsp]         ; r8 = argc
+    mov r8, [rsp]
     cmp r8, 1
-    jbe error             ; if argc <= 1 => no parameter => error
-
-    mov rsi, [rsp+16]     ; rsi -> argv[1]
-    call strcmp_b         ; compare argv[1] with "-b"
+    jbe error
+    mov rsi, [rsp+16]
+    call strcmp_b
     test rax, rax
-    jz check_bin          ; if rax=0 => argv[1] == "-b"
-; else => do hex
+    jz check_bin
 do_hex:
-    ; parse argv[1], then print hex
     mov rsi, [rsp+16]
     call parse_int
     mov rbx, rax
@@ -41,7 +21,6 @@ do_hex:
     jmp success
 
 check_bin:
-    ; we have "-b" => check if we have a second argument
     cmp r8, 2
     jbe error
     mov rsi, [rsp+24]
@@ -50,27 +29,16 @@ check_bin:
     call print_bin
     jmp success
 
-; --------------------------------------------------
-; success => exit(0)
 success:
     mov rax, 60
     xor rdi, rdi
     syscall
 
-; --------------------------------------------------
-; error => exit(1)
 error:
     mov rax, 60
     mov rdi, 1
     syscall
 
-
-; --------------------------------------------------
-; strcmp_b:
-;   RSI => pointer to the incoming string
-;   Compare with the literal '-b'
-;   Return 0 if match, else non-zero
-; --------------------------------------------------
 strcmp_b:
     push rdi
     mov rdi, bin_flag
@@ -93,12 +61,6 @@ strcmp_b:
     pop rdi
     ret
 
-; --------------------------------------------------
-; parse_int:
-;   RSI => pointer to ASCII decimal
-;   Convert to a non-negative integer in RAX
-;   (Stops on non-digit or end)
-; --------------------------------------------------
 parse_int:
     xor rax, rax
 .p_loop:
@@ -118,10 +80,6 @@ parse_int:
 .done:
     ret
 
-; --------------------------------------------------
-; print_hex:
-;   RBX => value to print in uppercase hex
-; --------------------------------------------------
 print_hex:
     test rbx, rbx
     jnz .convert
@@ -135,7 +93,7 @@ print_hex:
 .hex_loop:
     xor rdx, rdx
     mov rcx, 16
-    div rcx          ; RAX=quotient, RDX=remainder
+    div rcx
     cmp rdx, 9
     jg .alpha
     add rdx, '0'
@@ -157,10 +115,6 @@ print_hex:
     syscall
     ret
 
-; --------------------------------------------------
-; print_bin:
-;   RBX => value to print in binary
-; --------------------------------------------------
 print_bin:
     test rbx, rbx
     jnz .conv_bin
