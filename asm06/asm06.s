@@ -7,10 +7,10 @@ global _start
 _start:
     mov rsi, [rsp+16]
     test rsi, rsi
-    jz exit_error
+    jz error
     mov rdi, [rsp+24]
     test rdi, rdi
-    jz exit_error
+    jz error
     call parse_int
     mov rbx, rax
     mov rsi, rdi
@@ -21,54 +21,82 @@ _start:
     xor rdi, rdi
     syscall
 
-exit_error:
+error:
     mov rax, 60
     mov rdi, 1
     syscall
 
 parse_int:
-    xor rax, rax
-    xor rcx, rcx
-.parse_loop:
-    mov cl, [rsi]
-    test cl, cl
-    je .done
-    sub cl, '0'
-    imul rax, rax, 10
-    add rax, rcx
+    xor r8, r8
+    mov dl, [rsi]
+    cmp dl, '-'
+    jne .skip_sign
+    mov r8, 1
     inc rsi
-    jmp .parse_loop
-.done:
+.skip_sign:
+    xor rax, rax
+.pi_loop:
+    mov dl, [rsi]
+    test dl, dl
+    je .end_parse
+    sub dl, '0'
+    imul rax, rax, 10
+    add rax, rdx
+    inc rsi
+    jmp .pi_loop
+.end_parse:
+    test r8, r8
+    jz .ret
+    neg rax
+.ret:
     ret
 
 print_int:
+    test rax, rax
+    jns .positive
+    mov rdi, buffer
+    mov byte [rdi], '-'
+    neg rax
+    inc rdi
+    push rdi
+    call print_abs
+    pop rdi
+    jmp .finish
+.positive:
+    mov rdi, buffer
+    push rdi
+    call print_abs
+    pop rdi
+.finish:
+    mov rdx, rax
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, buffer
+    syscall
+    ret
+
+print_abs:
     mov rbx, rax
     cmp rbx, 0
     jne .convert
-    mov byte [buffer], '0'
-    mov rdx, 1
-    jmp .write_out
+    mov byte [rdi], '0'
+    add rdi, 1
+    jmp .done
 .convert:
-    mov rdi, buffer
     add rdi, 31
-    xor rcx, rcx
-.convert_loop:
+.pa_loop:
     xor rdx, rdx
     mov rax, rbx
-    mov r8, 10
-    div r8
+    mov rcx, 10
+    div rcx
     mov rbx, rax
     add rdx, '0'
     mov byte [rdi], dl
     dec rdi
     test rbx, rbx
-    jnz .convert_loop
-    add rdi, 1
-    mov rsi, rdi
-    mov rdx, buffer+32
-    sub rdx, rdi
-.write_out:
-    mov rax, 1
-    mov rdi, 1
-    syscall
+    jnz .pa_loop
+    inc rdi
+.done:
+    mov rax, buffer+32
+    sub rax, rdi
     ret
