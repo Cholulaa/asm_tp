@@ -35,7 +35,7 @@ _start:
     mov rax, 49             ; sys_bind
     syscall
 
-    ; Print startup message
+    ; Print startup message to stdout
     mov rdi, 1              ; stdout
     mov rax, 1              ; sys_write
     lea rsi, [rel listening_msg]
@@ -56,11 +56,12 @@ listen_loop:
     jle listen_loop         ; if no data/error, keep listening
     mov r11, rax            ; r11 = number of bytes received
 
-    ; Open (or create) file "messages" for appending:
-    lea rdi, [rel filename]
-    mov rsi, 1089           ; O_WRONLY | O_CREAT | O_APPEND
-    mov rdx, 420            ; mode 0644
-    mov rax, 2              ; sys_open
+    ; Open (or create) file "messages" for appending using sys_openat (257)
+    mov rdi, -100           ; AT_FDCWD
+    lea rsi, [rel filename]
+    mov rdx, 1089           ; O_WRONLY | O_CREAT | O_APPEND
+    mov r10, 420            ; mode 0644
+    mov rax, 257            ; sys_openat
     syscall
     test rax, rax
     js file_error
@@ -82,11 +83,11 @@ listen_loop:
 
 file_error:
     mov rdi, rbx
-    mov rax, 3
+    mov rax, 3              ; sys_close
     syscall
     jmp listen_loop
 
 exit_error:
-    mov rdi, 1
-    mov rax, 60
+    mov rdi, 1              ; exit(1)
+    mov rax, 60             ; sys_exit
     syscall
