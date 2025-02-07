@@ -13,55 +13,59 @@ section .text
 %define O_RDWR 2
 
 _start:
-    ; Check command line arguments
-    pop rax         ; Get argc
-    cmp rax, 2
+    ; Check if we have an argument
+    pop rcx         ; Get argc
+    cmp rcx, 2
     jl .error
     
-    ; Open the file
-    pop rax         ; Discard program name
-    pop rdi         ; Get filename argument
+    ; Get the filename (skip argv[0])
+    pop rcx         ; Skip program name
+    pop rdi         ; Get filename (argv[1])
+    
+    ; Open file
     mov rax, SYS_open
     mov rsi, O_RDWR
     xor rdx, rdx
     syscall
     
-    cmp rax, 0
-    jl .error
+    test rax, rax   ; Check for error
+    js .error
     mov rbx, rax    ; Save file descriptor
     
-    ; Read file content
+    ; Read file
     mov rdi, rax
     mov rsi, buffer
     mov rdx, 1024
     mov rax, SYS_read
     syscall
     
-    cmp rax, 0
+    test rax, rax   ; Check read success
     jle .close_error
     
-    ; Search and replace
-    mov rcx, rax    ; Store bytes read
+    ; Search pattern
+    mov rcx, rax     ; Save bytes read
     mov rsi, buffer
-.find_loop:
-    cmp rcx, 4
+    xor rdx, rdx     ; Initialize offset counter
+    
+.search_loop:
+    cmp rcx, 4       ; Need at least 4 bytes
     jl .close_error
     
-    mov eax, dword [rsi]
-    cmp eax, dword [search]
+    mov eax, dword [search]
+    cmp dword [rsi], eax
     je .found
     
     inc rsi
+    inc rdx
     dec rcx
-    jmp .find_loop
+    jmp .search_loop
     
 .found:
-    ; Seek to position
-    mov rdi, rbx
+    ; Seek to the position
+    mov rdi, rbx     ; File descriptor
     mov rax, SYS_lseek
-    mov rdx, 0      ; SEEK_SET
-    mov rsi, rsi
-    sub rsi, buffer ; Calculate offset
+    mov rsi, rdx     ; Offset we calculated
+    xor rdx, rdx     ; SEEK_SET
     syscall
     
     ; Write replacement
@@ -71,12 +75,12 @@ _start:
     mov rax, SYS_write
     syscall
     
-    ; Close and exit
+    ; Success path
     mov rdi, rbx
     mov rax, SYS_close
     syscall
     
-    xor rdi, rdi
+    xor rdi, rdi     ; Exit code 0
     mov rax, SYS_exit
     syscall
     
@@ -86,8 +90,8 @@ _start:
     syscall
     
 .error:
-    mov rdi, 1
     mov rax, SYS_exit
+    mov rdi, 1       ; Exit code 1
     syscall
 
 section .bss
