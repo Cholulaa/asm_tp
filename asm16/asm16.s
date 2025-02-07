@@ -1,109 +1,89 @@
 section .data
-    search db "1337"   ; La chaîne à rechercher
-    replace db "H4CK"  ; La nouvelle chaîne
-    search_len equ 4   ; Longueur de la chaîne à remplacer
-
-section .bss
-    buffer resb 4096   ; Buffer pour lire le fichier (augmente la taille)
+    search db "1337"
+    replace db "H4CK"
 
 section .text
     global _start
 
-%define SYS_open 2
-%define SYS_read 0
-%define SYS_write 1
-%define SYS_lseek 8
-%define SYS_close 3
-%define SYS_exit 60
-%define O_RDWR 2
-%define SEEK_SET 0
-
 _start:
-    ; Vérifier si un argument est fourni
-    mov r8, [rsp]      
-    cmp r8, 2
-    jl .error          
+    ; Check argc (number of arguments)
+    mov rdi, [rsp]      ; Get argc
+    cmp rdi, 2          ; Need at least 2 (program name + 1 argument)
+    jl .error
 
-    ; Ouvrir le fichier asm01 en lecture/écriture
-    mov rdi, [rsp+16]  
-    mov rax, SYS_open
-    mov rsi, O_RDWR
-    xor rdx, rdx
+    ; Get argv[1] - filename
+    mov rdi, [rsp + 16] ; Get pointer to filename
+
+    ; Open file
+    mov rax, 2          ; sys_open
+    mov rsi, 2          ; O_RDWR
+    xor rdx, rdx        ; mode
     syscall
-    cmp rax, 0
+
+    ; Check if open succeeded
+    test rax, rax
     js .error
+    mov rbx, rax        ; Save fd
 
-    mov rbx, rax       ; Stocker le file descriptor
+    ; Read file content
+    mov rdi, rbx        ; fd
+    mov rax, 0          ; sys_read
+    mov rsi, buffer     ; buffer
+    mov rdx, 1024       ; count
+    syscall
 
-    ; Lire le fichier en mémoire
+    ; Check read success
+    test rax, rax
+    jle .close
+
+    ; Search for pattern
+    mov rsi, buffer     ; Source
+    xor rdx, rdx        ; Offset counter
+
+.loop:
+    mov eax, [search]   ; Load search pattern
+    cmp [rsi], eax      ; Compare with current position
+    je .replace         ; Found it!
+
+    inc rsi             ; Next position
+    inc rdx             ; Increment offset
+    cmp rdx, rax        ; Check if we reached end
+    jl .loop
+    jmp .close          ; Pattern not found
+
+.replace:
+    ; Seek to position
+    mov rdi, rbx        ; fd
+    mov rax, 8          ; sys_lseek
+    mov rsi, rdx        ; offset
+    xor rdx, rdx        ; SEEK_SET
+    syscall
+
+    ; Write replacement
+    mov rdi, rbx        ; fd
+    mov rax, 1          ; sys_write
+    mov rsi, replace    ; buffer
+    mov rdx, 4          ; count
+    syscall
+
+    ; Close file and exit successfully
     mov rdi, rbx
-    mov rsi, buffer
-    mov rdx, 4096
-    mov rax, SYS_read
+    mov rax, 3          ; sys_close
     syscall
-    cmp rax, 0
-    jle .close_error
-
-    mov rcx, rax       ; Nombre d'octets lus
-    mov rsi, buffer
-
-    ; Rechercher "1337" octet par octet
-.find_loop:
-    cmp rcx, search_len
-    jl .close_error    ; Si pas trouvé, quitter
-
-    mov rdi, search
-    mov rdx, search_len
-    push rsi           ; Sauvegarde rsi (position actuelle)
-
-.compare:
-    mov al, [rsi]
-    cmp al, [rdi]
-    jne .next_byte
-    inc rsi
-    inc rdi
-    dec rdx
-    jnz .compare
-
-    ; Trouvé ! Calculer l'offset
-    pop rsi
-    sub rsi, buffer    
-
-    ; Déplacer le curseur au bon offset
-    mov rdi, rbx       
-    mov rdx, SEEK_SET  
-    mov rax, SYS_lseek
+    
+    xor rdi, rdi        ; Success exit code
+    mov rax, 60         ; sys_exit
     syscall
 
-    ; Écrire "H4CK"
+.close:
     mov rdi, rbx
-    mov rsi, replace
-    mov rdx, search_len
-    mov rax, SYS_write
-    syscall
-
-    jmp .close_success
-
-.next_byte:
-    pop rsi            ; Restaurer rsi
-    inc rsi
-    dec rcx
-    jmp .find_loop
-
-.close_success:
-    mov rax, SYS_close
-    mov rdi, rbx
-    syscall
-    mov rax, SYS_exit
-    xor rdi, rdi
-    syscall
-
-.close_error:
-    mov rax, SYS_close
-    mov rdi, rbx
+    mov rax, 3          ; sys_close
     syscall
 
 .error:
-    mov rax, SYS_exit
-    mov rdi, 1
+    mov rdi, 1          ; Error exit code
+    mov rax, 60         ; sys_exit
     syscall
+
+section .bss
+    buffer resb 1024
