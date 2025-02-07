@@ -22,18 +22,18 @@ section .data
 
     newline           db 10
 
-    server_addr:      
-        dw 2                   ; AF_INET
-        dw 0x9210              ; Port 4242 in network byte order (4242 → 0x1092 → 0x9210)
-        dd 0x0100007F         ; 127.0.0.1 in network order
-        times 8 db 0           ; padding
+    server_addr:
+        dw 2                    ; AF_INET
+        dw 0x9210               ; Port 4242 in network byte order (4242 → 0x1092 → 0x9210)
+        dd 0x0100007F          ; 127.0.0.1 in network order
+        times 8 db 0
 
 section .bss
-    buffer    resb 1024        ; Buffer for client commands
-    revbuf    resb 1024        ; Buffer for reversed string
+    buffer  resb 1024           ; Buffer for client commands
+    revbuf  resb 1024           ; Buffer for reversed string
 
 section .text
-    global _start
+global _start
 
 _start:
     ; Create TCP socket: socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
@@ -111,8 +111,16 @@ client_loop:
     cmp rax, 0
     jle close_client
     mov r13, rax         ; number of bytes read
-    ; Null-terminate the command
     mov byte [buffer + r13], 0
+
+    ; Remove trailing newline if present
+    mov rbx, r13
+    dec rbx
+    mov al, byte [buffer + rbx]
+    cmp al, 10
+    jne .skip_newline
+    mov byte [buffer + rbx], 0
+.skip_newline:
 
     ; Compare with "PING" (first 4 characters)
     mov rsi, buffer
@@ -151,7 +159,6 @@ do_ping:
 do_reverse:
     ; Pointer to text = buffer + cmd_reverse_space_len
     lea rsi, [buffer + cmd_reverse_space_len]
-    ; Remove trailing newline if present
     mov rbx, r13
     dec rbx
     mov al, byte [buffer + rbx]
@@ -195,7 +202,6 @@ close_client:
     mov rax, 60           ; sys_exit
     syscall
 
-; strcmp_n: compare rcx bytes of strings at rsi and rdi; returns 0 if equal.
 strcmp_n:
     push rcx
 .cmp_loop:
@@ -218,12 +224,10 @@ strcmp_n:
     pop rcx
     ret
 
-; strlen: return length of string in rax; rdi = pointer
 strlen:
     xor rcx, rcx
 .str_loop:
-    mov al, byte [rdi+rcx]
-    cmp al, 0
+    cmp byte [rdi+rcx], 0
     je .done
     inc rcx
     jmp .str_loop
@@ -231,19 +235,17 @@ strlen:
     mov rax, rcx
     ret
 
-; reverse_copy: copy string of length rcx from rsi to rdi in reverse order.
 reverse_copy:
     mov rbx, rcx
     dec rbx
 .rev_loop:
-    cmp rbx, -1
-    je .done_rev
+    xor rdx, rdx
     mov al, byte [rsi+rbx]
     mov byte [rdi], al
     inc rdi
     dec rbx
-    jmp .rev_loop
-.done_rev:
+    cmp rbx, -1
+    jne .rev_loop
     ret
 
 exit_error:
