@@ -10,7 +10,7 @@ request_msg db "Ping",0
 request_len equ $ - request_msg
 
 response_prefix db "message: ", 0
-timeout_msg     db "Timeout: no response from server", 10, 0
+timeout_msg     db "Timeout: no response from server", 11, 0
 
 timeout:
     dq 1                    ; tv_sec = 1
