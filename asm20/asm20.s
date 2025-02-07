@@ -14,6 +14,9 @@ section .data
     cmd_ping          db "PING", 0
     cmd_ping_len      equ $ - cmd_ping
 
+    cmd_echo          db "ECHO ", 0
+    cmd_echo_len      equ $ - cmd_echo
+
     cmd_reverse_space db "REVERSE ", 0
     cmd_reverse_space_len equ $ - cmd_reverse_space
 
@@ -125,12 +128,20 @@ client_loop:
     ; Compare with "PING" (first 4 characters)
     mov rsi, buffer
     mov rdi, cmd_ping
-    mov rcx, 4
+    mov rcx, cmd_ping_len
     call strcmp_n
     cmp rax, 0
     je do_ping
 
-    ; Compare with "REVERSE " (8 characters)
+    ; Compare with "ECHO " (first 5 characters)
+    mov rsi, buffer
+    mov rdi, cmd_echo
+    mov rcx, cmd_echo_len
+    call strcmp_n
+    cmp rax, 0
+    je do_echo
+
+    ; Compare with "REVERSE " (first 8 characters)
     mov rsi, buffer
     mov rdi, cmd_reverse_space
     mov rcx, cmd_reverse_space_len
@@ -156,8 +167,20 @@ do_ping:
     syscall
     jmp client_loop
 
+do_echo:
+    ; Echo text after "ECHO "
+    lea rsi, [buffer + cmd_echo_len]
+    call strlen
+    mov r14, rax         ; r14 = length of text
+    mov rdi, r12         ; client socket
+    mov rax, 1           ; sys_write
+    lea rsi, [buffer + cmd_echo_len]
+    mov rdx, r14
+    syscall
+    jmp client_loop
+
 do_reverse:
-    ; Pointer to text = buffer + cmd_reverse_space_len
+    ; Reverse text after "REVERSE "
     lea rsi, [buffer + cmd_reverse_space_len]
     mov rbx, r13
     dec rbx
