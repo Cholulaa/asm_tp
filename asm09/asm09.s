@@ -1,62 +1,59 @@
 section .data
-buffer: times 64 db 0
-bin_flag: db '-b', 0
+    tampon: times 64 db 0
+    flag_bin: db '-b', 0
 
 section .text
-global _start
+    global _start
 
 _start:
     mov r8, [rsp]
     cmp r8, 1
-    jbe error
+    jbe erreur
     mov rsi, [rsp+16]
     call strcmp_b
     test rax, rax
-    jz check_bin
+    jz verifier_bin
 do_hex:
     mov rsi, [rsp+16]
     call parse_int
     mov rbx, rax
     call print_hex
-    jmp success
-
-check_bin:
+    jmp succes
+verifier_bin:
     cmp r8, 2
-    jbe error
+    jbe erreur
     mov rsi, [rsp+24]
     call parse_int
     mov rbx, rax
     call print_bin
-    jmp success
-
-success:
+    jmp succes
+succes:
     mov rax, 60
     xor rdi, rdi
     syscall
-
-error:
+erreur:
     mov rax, 60
     mov rdi, 1
     syscall
 
 strcmp_b:
     push rdi
-    mov rdi, bin_flag
+    mov rdi, flag_bin
 .loop_cmp:
     mov al, [rsi]
     mov bl, [rdi]
     cmp al, bl
-    jne .diff
+    jne diff
     test al, al
-    jz .same
+    jz same
     inc rsi
     inc rdi
     jmp .loop_cmp
-.diff:
+diff:
     mov rax, 1
     pop rdi
     ret
-.same:
+same:
     xor rax, rax
     pop rdi
     ret
@@ -66,50 +63,50 @@ parse_int:
 .p_loop:
     mov dl, [rsi]
     test dl, dl
-    jz .done
+    jz done
     cmp dl, 10
-    je .done
+    je done
     sub dl, '0'
-    jl .done
+    jl done
     cmp dl, 9
-    jg .done
+    jg done
     imul rax, rax, 10
     add rax, rdx
     inc rsi
     jmp .p_loop
-.done:
+done:
     ret
 
 print_hex:
     test rbx, rbx
-    jnz .convert
-    mov byte [buffer], '0'
-    mov rsi, buffer
+    jnz convertir_hex
+    mov byte [tampon], '0'
+    mov rsi, tampon
     mov rdx, 1
-    jmp .write
-.convert:
+    jmp ecrire
+convertir_hex:
     mov rax, rbx
-    lea rdi, [buffer+63]
+    lea rdi, [tampon+63]
 .hex_loop:
     xor rdx, rdx
     mov rcx, 16
     div rcx
     cmp rdx, 9
-    jg .alpha
+    jg alpha
     add rdx, '0'
-    jmp .store
-.alpha:
+    jmp store
+alpha:
     add rdx, 'A' - 10
-.store:
+store:
     mov byte [rdi], dl
     dec rdi
     test rax, rax
     jnz .hex_loop
     inc rdi
     mov rsi, rdi
-    mov rdx, buffer+64
+    mov rdx, tampon+64
     sub rdx, rdi
-.write:
+ecrire:
     mov rax, 1
     mov rdi, 1
     syscall
@@ -117,14 +114,14 @@ print_hex:
 
 print_bin:
     test rbx, rbx
-    jnz .conv_bin
-    mov byte [buffer], '0'
-    mov rsi, buffer
+    jnz convertir_bin
+    mov byte [tampon], '0'
+    mov rsi, tampon
     mov rdx, 1
-    jmp .w_bin
-.conv_bin:
+    jmp ecrire_bin
+convertir_bin:
     mov rax, rbx
-    lea rdi, [buffer+63]
+    lea rdi, [tampon+63]
 .bin_loop:
     xor rdx, rdx
     mov rcx, 2
@@ -136,9 +133,9 @@ print_bin:
     jnz .bin_loop
     inc rdi
     mov rsi, rdi
-    mov rdx, buffer+64
+    mov rdx, tampon+64
     sub rdx, rdi
-.w_bin:
+ecrire_bin:
     mov rax, 1
     mov rdi, 1
     syscall

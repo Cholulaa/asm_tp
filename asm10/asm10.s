@@ -1,5 +1,5 @@
 section .data
-buffer: times 64 db 0
+    tampon: times 64 db 0
 
 section .text
 global _start
@@ -7,15 +7,15 @@ global _start
 _start:
     mov r8, [rsp]
     cmp r8, 4
-    jl e
+    jl sortie_erreur
     mov rsi, [rsp+16]
-    call parse
+    call conversion
     mov rbx, rax
     mov rsi, [rsp+24]
-    call parse
+    call conversion
     mov rcx, rax
     mov rsi, [rsp+32]
-    call parse
+    call conversion
     mov rdx, rax
     cmp rcx, rbx
     jle .c
@@ -26,64 +26,64 @@ _start:
     mov rbx, rdx
 .m:
     mov rax, rbx
-    call print_signed
+    call afficher_nombre
     mov rax, 60
     xor rdi, rdi
     syscall
-e:
+sortie_erreur:
     mov rax, 60
     mov rdi, 1
     syscall
 
-parse:
+conversion:
     xor r8, r8
     mov dl, [rsi]
     cmp dl, '-'
-    jne d
+    jne d_label
     mov r8, 1
     inc rsi
-d:
+d_label:
     xor rax, rax
-l:
+l_loop:
     mov dl, [rsi]
     test dl, dl
-    jz .done
+    jz fini_conversion
     cmp dl, 10
-    je .done
+    je fini_conversion
     sub dl, '0'
-    jl .done
+    jl fini_conversion
     cmp dl, 9
-    jg .done
+    jg fini_conversion
     imul rax, rax, 10
     add rax, rdx
     inc rsi
-    jmp l
-.done:
+    jmp l_loop
+fini_conversion:
     test r8, r8
-    jz r
+    jz r_label
     neg rax
-r:
+r_label:
     ret
 
-print_signed:
+afficher_nombre:
     test rax, rax
-    jns .p
-    mov byte [buffer], '-'
+    jns positif
+    mov byte [tampon], '-'
     neg rax
-    lea rdi, [buffer+1]
-    jmp c
-.p:
-    lea rdi, [buffer]
-c:
+    lea rdi, [tampon+1]
+    jmp copie
+positif:
+    lea rdi, [tampon]
+copie:
     mov rcx, rax
     test rcx, rcx
-    jnz .v
+    jnz conversion_chiffres
     mov byte [rdi], '0'
     inc rdi
-    jmp w
-.v:
-    lea rsi, [buffer+63]
-lp:
+    jmp ecrire
+conversion_chiffres:
+    lea rsi, [tampon+63]
+conv_loop:
     xor rdx, rdx
     mov rax, rcx
     mov r8, 10
@@ -93,21 +93,21 @@ lp:
     mov byte [rsi], dl
     dec rsi
     test rcx, rcx
-    jnz lp
+    jnz conv_loop
     inc rsi
-    mov rax, buffer+64
+    mov rax, tampon+64
     sub rax, rsi
-cp:
+copie_fin:
     mov dl, [rsi]
     mov [rdi], dl
     inc rdi
     inc rsi
     dec rax
-    jnz cp
-w:
+    jnz copie_fin
+ecrire:
     mov rax, 1
-    mov rsi, buffer
-    sub rdi, buffer
+    mov rsi, tampon
+    sub rdi, tampon
     mov rdx, rdi
     mov rdi, 1
     syscall

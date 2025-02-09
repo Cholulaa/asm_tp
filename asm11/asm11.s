@@ -1,5 +1,5 @@
 section .data
-buffer: times 64 db 0
+    tampon: times 64 db 0
 
 section .text
 global _start
@@ -7,84 +7,91 @@ global _start
 _start:
     xor rax, rax
     mov rdi, rax
-    mov rsi, buffer
+    mov rsi, tampon
     mov rdx, 64
     syscall
     mov rcx, rax
     xor rbx, rbx
-loop_read:
+boucle_lecture:
     test rcx, rcx
-    jz done
+    jz fin
     mov al, [rsi]
     inc rsi
     dec rcx
-    call is_vowel
+    call est_voyelle
     add rbx, rax
-    jmp loop_read
-done:
+    jmp boucle_lecture
+fin:
     mov rax, rbx
-    call print_dec
+    call afficher_dec
     mov rax, 60
     xor rdi, rdi
     syscall
 
-is_vowel:
+est_voyelle:
     cmp al, 'a'
-    je ret1
+    je rep1
     cmp al, 'e'
-    je ret1
+    je rep1
     cmp al, 'i'
-    je ret1
+    je rep1
     cmp al, 'o'
-    je ret1
+    je rep1
     cmp al, 'u'
-    je ret1
+    je rep1
     cmp al, 'y'
-    je ret1
+    je rep1
     cmp al, 'A'
-    je ret1
+    je rep1
     cmp al, 'E'
-    je ret1
+    je rep1
     cmp al, 'I'
-    je ret1
+    je rep1
     cmp al, 'O'
-    je ret1
+    je rep1
     cmp al, 'U'
-    je ret1
+    je rep1
     cmp al, 'Y'
-    je ret1
+    je rep1
     xor rax, rax
     ret
-ret1:
+rep1:
     mov rax, 1
     ret
 
-print_dec:
+afficher_dec:
     test rax, rax
-    jnz conv
-    mov byte [buffer], '0'
-    mov rsi, buffer
+    jnz conv_dec
+    mov byte [tampon], '0'
+    mov rsi, tampon
     mov rdx, 1
-    jmp wr
-conv:
+    jmp ecrire_dec
+conv_dec:
     mov rbx, rax
-    lea rdi, [buffer+63]
-c_loop:
+    lea rdi, [tampon+63]
+boucle_dec:
     xor rdx, rdx
     mov rax, rbx
     mov rcx, 10
     div rcx
     mov rbx, rax
     add rdx, '0'
-    mov byte [rdi], dl
-    dec rdi
+    mov byte [tampon+63], dl
+    mov byte [rsi], dl
+    dec rsi
     test rbx, rbx
-    jnz c_loop
+    jnz boucle_dec
+    inc rsi
+    mov rax, tampon+64
+    sub rax, rsi
+copie_dec:
+    mov dl, [rsi]
+    mov [rdi], dl
     inc rdi
-    mov rsi, rdi
-    mov rdx, buffer+64
-    sub rdx, rdi
-wr:
+    inc rsi
+    dec rax
+    jnz copie_dec
+ecrire_dec:
     mov rax, 1
     mov rdi, 1
     syscall

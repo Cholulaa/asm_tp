@@ -1,93 +1,78 @@
 section .data
-myaddr:
-    dw 2                      ; AF_INET
-    dw 0x3905                 ; Port 1337 (htons(1337)=0x3905)
-    dd 0x0100007F            ; 127.0.0.1 (in network order)
-    times 8 db 0
-
-listening_msg:
-    db 0xE2,0x8F,0xB3, " Listening on port 1337", 10
-listening_msg_len equ $ - listening_msg
-
-filename: db "messages", 0
+    adresse:
+        dw 2
+        dw 0x3905
+        dd 0x0100007F
+        times 8 db 0
+    msg_ecoute:
+        db 0xE2,0x8F,0xB3, " Listening on port 1337", 10
+    lg_msg_ecoute equ $ - msg_ecoute
+    nom_fichier: db "messages", 0
 
 section .bss
-recv_buffer resb 1024
+    tampon_reception resb 1024
 
 section .text
 global _start
 
 _start:
-    ; Create UDP socket: socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
-    mov rdi, 2              ; AF_INET
-    mov rsi, 2              ; SOCK_DGRAM
-    mov rdx, 17             ; IPPROTO_UDP
-    mov rax, 41             ; sys_socket
+    mov rdi, 2
+    mov rsi, 2
+    mov rdx, 17
+    mov rax, 41
     syscall
     test rax, rax
-    js exit_error
-    mov rbx, rax            ; save socket fd in rbx
-
-    ; Bind socket to our address (127.0.0.1:1337)
+    js sortie_erreur
+    mov rbx, rax
     mov rdi, rbx
-    lea rsi, [rel myaddr]
+    lea rsi, [rel adresse]
     mov rdx, 16
-    mov rax, 49             ; sys_bind
+    mov rax, 49
+    syscall
+    mov rdi, 1
+    mov rax, 1
+    lea rsi, [rel msg_ecoute]
+    mov rdx, lg_msg_ecoute
     syscall
 
-    ; Print startup message to stdout
-    mov rdi, 1              ; stdout
-    mov rax, 1              ; sys_write
-    lea rsi, [rel listening_msg]
-    mov rdx, listening_msg_len
-    syscall
-
-listen_loop:
-    ; Receive UDP packet
+boucle_ecoute:
     mov rdi, rbx
-    lea rsi, [rel recv_buffer]
+    lea rsi, [rel tampon_reception]
     mov rdx, 1024
-    xor r10, r10            ; flags = 0
-    xor r8, r8              ; no src address pointer
-    xor r9, r9              ; no src addr length pointer
-    mov rax, 45             ; sys_recvfrom
+    xor r10, r10
+    xor r8, r8
+    xor r9, r9
+    mov rax, 45
     syscall
     cmp rax, 0
-    jle listen_loop         ; if no data/error, keep listening
-    mov r11, rax            ; r11 = number of bytes received
-
-    ; Open (or create) file "messages" for appending using sys_openat (257)
-    mov rdi, -100           ; AT_FDCWD
-    lea rsi, [rel filename]
-    mov rdx, 1089           ; O_WRONLY | O_CREAT | O_APPEND
-    mov r10, 420            ; mode 0644
-    mov rax, 257            ; sys_openat
+    jle boucle_ecoute
+    mov r11, rax
+    mov rdi, -100
+    lea rsi, [rel nom_fichier]
+    mov rdx, 1089
+    mov r10, 420
+    mov rax, 257
     syscall
     test rax, rax
-    js file_error
-    mov rcx, rax            ; file descriptor for the file
-
-    ; Write the received message to file
+    js erreur_fichier
+    mov rcx, rax
     mov rdi, rcx
-    mov rax, 1              ; sys_write
-    lea rsi, [rel recv_buffer]
+    mov rax, 1
+    lea rsi, [rel tampon_reception]
     mov rdx, r11
     syscall
-
-    ; Close the file
     mov rdi, rcx
-    mov rax, 3              ; sys_close
+    mov rax, 3
     syscall
+    jmp boucle_ecoute
 
-    jmp listen_loop
-
-file_error:
+erreur_fichier:
     mov rdi, rbx
-    mov rax, 3              ; sys_close
+    mov rax, 3
     syscall
-    jmp listen_loop
+    jmp boucle_ecoute
 
-exit_error:
-    mov rdi, 1              ; exit(1)
-    mov rax, 60             ; sys_exit
+sortie_erreur:
+    mov rdi, 1
+    mov rax, 60
     syscall
