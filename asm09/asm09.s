@@ -140,3 +140,4 @@ ecrire_bin:
     mov rdi, 1
     syscall
     ret
+ 

@@ -75,3 +75,4 @@ erreur16:
 
 section .bss
     tampon16 resb 16
+ 

@@ -96,3 +96,4 @@ ecrire_dec:
     mov rdi, 1
     syscall
     ret
+ 
