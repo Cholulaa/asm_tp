@@ -1,174 +1,214 @@
 section .data
-    msg_ecoute db "⏳ Listening on port 4242", 10
-    lg_msg_ecoute equ $ - msg_ecoute
-    invite db "Type a command: "
-    lg_invite equ $ - invite
-    pong db "PONG", 10
-    lg_pong equ $ - pong
-    au_revoir db "Goodbye!", 10
-    lg_au_revoir equ $ - au_revoir
-    nouvelle_ligne db 10
-    adresse_serveur:
-        dw 2
-        dw 0x9210
-        dd 0
-        times 8 db 0
+    listening_msg     db "⏳ Listening on port 4242", 10
+    listening_msg_len equ $ - listening_msg
+
+    prompt            db "Type a command: "
+    prompt_len        equ $ - prompt
+
+    pong              db "PONG", 10
+    pong_len          equ $ - pong
+
+    goodbye           db "Goodbye!", 10
+    goodbye_len       equ $ - goodbye
+
+    newline           db 10
+
+    server_addr:
+        dw 2                    ; AF_INET
+        dw 0x9210              ; Port 4242 (network byte order)
+        dd 0                   ; INADDR_ANY
+        times 8 db 0           ; Padding
 
 section .bss
-    tampon_commande resb 1024
-    tampon_inverse resb 1024
+    buffer  resb 1024
+    revbuf  resb 1024
 
 section .text
 global _start
 
 _start:
-    mov rax, 41
-    mov rdi, 2
-    mov rsi, 1
-    mov rdx, 0
+    ; Create socket
+    mov rax, 41          ; sys_socket
+    mov rdi, 2           ; AF_INET
+    mov rsi, 1           ; SOCK_STREAM
+    mov rdx, 0           ; protocol
     syscall
     test rax, rax
-    js sortie_erreur
-    mov r12, rax
-    mov rax, 49
+    js exit_error
+    mov r12, rax         ; Save socket fd
+
+    ; Bind socket
+    mov rax, 49          ; sys_bind
     mov rdi, r12
-    lea rsi, [rel adresse_serveur]
+    lea rsi, [rel server_addr]
     mov rdx, 16
     syscall
     test rax, rax
-    js sortie_erreur
-    mov rax, 50
+    js exit_error
+
+    ; Listen
+    mov rax, 50          ; sys_listen
     mov rdi, r12
-    mov rsi, 5
+    mov rsi, 5           ; backlog
     syscall
     test rax, rax
-    js sortie_erreur
-    mov rax, 1
-    mov rdi, 1
-    lea rsi, [rel msg_ecoute]
-    mov rdx, lg_msg_ecoute
+    js exit_error
+
+    ; Print listening message
+    mov rax, 1           ; sys_write
+    mov rdi, 1           ; stdout
+    lea rsi, [rel listening_msg]
+    mov rdx, listening_msg_len
     syscall
 
-boucle_acceptation:
-    mov rax, 43
+accept_loop:
+    ; Accept connection
+    mov rax, 43          ; sys_accept
     mov rdi, r12
     xor rsi, rsi
     xor rdx, rdx
     syscall
     test rax, rax
-    js boucle_acceptation
-    mov r13, rax
-    mov rax, 57
+    js accept_loop
+    mov r13, rax         ; Save client socket
+
+    ; Fork
+    mov rax, 57          ; sys_fork
     syscall
     cmp rax, 0
-    je gerer_client
-    mov rax, 3
+    je handle_client
+
+    ; Parent: close client socket and continue accepting
+    mov rax, 3           ; sys_close
     mov rdi, r13
     syscall
-    jmp boucle_acceptation
+    jmp accept_loop
 
-gerer_client:
+handle_client:
+    ; Child: close server socket
     mov rax, 3
     mov rdi, r12
     syscall
 
-boucle_client:
+client_loop:
+    ; Send prompt
     mov rax, 1
     mov rdi, r13
-    lea rsi, [rel invite]
-    mov rdx, lg_invite
+    lea rsi, [rel prompt]
+    mov rdx, prompt_len
     syscall
-    mov rax, 0
+
+    ; Read command
+    mov rax, 0           ; sys_read
     mov rdi, r13
-    lea rsi, [rel tampon_commande]
+    lea rsi, [rel buffer]
     mov rdx, 1024
     syscall
     test rax, rax
-    jle sortie_client
-    mov r14, rax
+    jle client_exit
+    mov r14, rax         ; Save bytes read
+
+    ; Remove newline if present
     dec r14
-    mov byte [tampon_commande + r14], 0
-    cmp dword [tampon_commande], 0x474E4950
+    mov byte [buffer + r14], 0
+
+    ; Check for commands
+    cmp dword [buffer], 0x474E4950  ; "PING"
     je cmd_ping
-    cmp dword [tampon_commande], 0x54495845
+
+    cmp dword [buffer], 0x54495845  ; "EXIT"
     je cmd_exit
-    cmp dword [tampon_commande], 0x4F484345
+
+    cmp dword [buffer], 0x4F484345  ; "ECHO"
     je cmd_echo
-    cmp dword [tampon_commande], 0x45564552
+
+    cmp dword [buffer], 0x45564552  ; "REVE"
     je cmd_reverse
-    jmp boucle_client
+
+    jmp client_loop
 
 cmd_ping:
     mov rax, 1
     mov rdi, r13
     lea rsi, [rel pong]
-    mov rdx, lg_pong
+    mov rdx, pong_len
     syscall
-    jmp boucle_client
+    jmp client_loop
 
 cmd_echo:
-    lea rsi, [tampon_commande + 5]
+    ; Skip "ECHO " (5 chars)
+    lea rsi, [buffer + 5]
     mov rdx, r14
-    sub rdx, 5
+    sub rdx, 5          ; Adjust length
     mov rax, 1
     mov rdi, r13
     syscall
+    ; Add newline
     mov rax, 1
     mov rdi, r13
-    lea rsi, [rel nouvelle_ligne]
+    lea rsi, [rel newline]
     mov rdx, 1
     syscall
-    jmp boucle_client
+    jmp client_loop
 
 cmd_reverse:
+    ; Calculate length of string to reverse (after "REVERSE ")
     mov rcx, r14
-    sub rcx, 8
+    sub rcx, 8          ; Skip "REVERSE " prefix
+    
+    ; Clear destination buffer
     push rcx
     mov rcx, r14
-    lea rdi, [tampon_inverse]
+    lea rdi, [revbuf]
     xor rax, rax
     rep stosb
     pop rcx
-    lea rsi, [tampon_commande + 8]
-    add rsi, rcx
+    
+    ; Setup source and destination
+    lea rsi, [buffer + 8]  ; Source: after "REVERSE "
+    lea rdi, [revbuf]      ; Destination
+    add rsi, rcx          ; Point to end of source string
     dec rsi
-.boucle_inverse:
-    mov al, [rsi]
-    mov [tampon_inverse], al
-    dec rsi
-    inc tampon_inverse
-    loop .boucle_inverse
-    mov rax, 1
-    mov rdi, r13
-    lea rsi, [tampon_inverse - rcx]
-    mov rdx, r14
-    sub rdx, 8
+
+.reverse_loop:
+    mov al, [rsi]         ; Get character from end
+    mov [rdi], al         ; Store at beginning
+    dec rsi               ; Move backward in source
+    inc rdi               ; Move forward in destination
+    loop .reverse_loop
+
+    ; Send reversed string
+    mov rax, 1           ; sys_write
+    mov rdi, r13         ; client socket
+    lea rsi, [revbuf]    ; reversed string
+    mov rdx, r14         ; length
+    sub rdx, 8           ; subtract "REVERSE " length
     syscall
+    
+    ; Add newline
     mov rax, 1
     mov rdi, r13
-    lea rsi, [rel nouvelle_ligne]
+    lea rsi, [rel newline]
     mov rdx, 1
     syscall
-    jmp boucle_client
+    jmp client_loop
 
 cmd_exit:
     mov rax, 1
     mov rdi, r13
-    lea rsi, [rel au_revoir]
-    mov rdx, lg_au_revoir
+    lea rsi, [rel goodbye]
+    mov rdx, goodbye_len
     syscall
-    jmp sortie_client
 
-sortie_client:
-    mov rax, 3
+client_exit:
+    mov rax, 3           ; sys_close
     mov rdi, r13
     syscall
-    mov rdi, 0
-    mov rax, 60
+    mov rax, 60          ; sys_exit
+    xor rdi, rdi
     syscall
 
-sortie_erreur:
+exit_error:
+    mov rax, 60          ; sys_exit
     mov rdi, 1
-    mov rax, 60
     syscall
- 
