@@ -1,5 +1,5 @@
 section .data
-    tampon: times 64 db 0
+buffer: times 64 db 0
 
 section .text
 global _start
@@ -13,57 +13,59 @@ global _start
 _start:
     mov r8, [rsp]
     cmp r8, 2
-    jl e15
+    jl e
     mov rdi, [rsp+16]
     mov rax, SYS_open
     mov rsi, O_RDONLY
     xor rdx, rdx
     syscall
     cmp rax, 0
-    js e15
+    js e
     mov rbx, rax
     xor rax, rax
     mov rdi, rbx
-    mov rsi, tampon
+    mov rsi, buffer
     mov rdx, 64
     syscall
     cmp rax, 20
-    jl ce15
+    jl ce
     mov rax, SYS_close
     mov rdi, rbx
     syscall
-    mov al, [tampon]
+    mov al, [buffer]
     cmp al, 0x7F
-    jne ne15
-    mov al, [tampon+1]
+    jne ne
+    mov al, [buffer+1]
     cmp al, 'E'
-    jne ne15
-    mov al, [tampon+2]
+    jne ne
+    mov al, [buffer+2]
     cmp al, 'L'
-    jne ne15
-    mov al, [tampon+3]
+    jne ne
+    mov al, [buffer+3]
     cmp al, 'F'
-    jne ne15
-    mov al, [tampon+4]
+    jne ne
+    mov al, [buffer+4]
     cmp al, 2
-    jne ne15
+    jne ne
     xor rax, rax
-    mov al, [tampon+18]
-    mov ah, [tampon+19]
+    mov al, [buffer+18]
+    mov ah, [buffer+19]
     cmp ax, 0x003E
-    jne ne15
+    jne ne
     mov rax, SYS_exit
     xor rdi, rdi
     syscall
-ce15:
+
+ce:
     mov rax, SYS_close
     mov rdi, rbx
     syscall
-e15:
+e:
     mov rax, SYS_exit
     mov rdi, 1
     syscall
-ne15:
+
+ne:
     mov rax, SYS_exit
     mov rdi, 1
     syscall

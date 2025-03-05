@@ -1,42 +1,60 @@
 section .data
-    tampon: times 64 db 0
+buffer: times 64 db 0
 
 section .text
 global _start
 
+; asm12 : Inverser la chaîne lue sur stdin et l'afficher
+; Ex:
+;   echo "abcd" | ./asm12
+;   => "dcba"
+
 _start:
-    xor rax, rax
-    mov rdi, rax
-    mov rsi, tampon
+    ; sys_read(0, buffer, 64)
+    xor rax, rax         ; rax = 0 => sys_read
+    mov rdi, rax         ; stdin
+    mov rsi, buffer
     mov rdx, 64
-    syscall
-    mov rcx, rax
+    syscall              ; nombre d'octets lus dans rax
+    mov rcx, rax         ; rcx = length
+
+    ; si aucun caractère lu, on sort directement
     test rcx, rcx
-    jz fin12
-    lea rdi, [tampon+rcx-1]
+    jz .done
+
+    ; enlever éventuel '\n' à la fin
+    lea rdi, [buffer + rcx - 1]
     cmp byte [rdi], 10
-    jne inverser
+    jne .reverse
     dec rcx
-inverser:
-    mov rsi, tampon
-    lea rdi, [tampon+rcx-1]
-boucle_inv:
+
+.reverse:
+    ; RCX = longueur à inverser
+    ; pointeurs: start (rsi = buffer) et end (rdi = buffer + rcx - 1)
+    mov rsi, buffer
+    lea rdi, [buffer + rcx - 1]
+
+.loop:
     cmp rsi, rdi
-    jge ecrire12
+    jge .write
     mov al, [rsi]
     mov bl, [rdi]
     mov [rsi], bl
     mov [rdi], al
     inc rsi
     dec rdi
-    jmp boucle_inv
-ecrire12:
-    mov rax, 1
-    mov rdi, 1
-    mov rsi, tampon
+    jmp .loop
+
+.write:
+    ; écrire la chaîne inversée
+    mov rax, 1           ; sys_write
+    mov rdi, 1           ; stdout
+    mov rsi, buffer
     mov rdx, rcx
     syscall
-fin12:
+
+.done:
+    ; exit(0)
     mov rax, 60
     xor rdi, rdi
     syscall

@@ -1,5 +1,5 @@
 section .data
-    tampon: times 64 db 0
+buffer: times 64 db 0
 
 section .text
 global _start
@@ -7,91 +7,84 @@ global _start
 _start:
     xor rax, rax
     mov rdi, rax
-    mov rsi, tampon
+    mov rsi, buffer
     mov rdx, 64
     syscall
     mov rcx, rax
     xor rbx, rbx
-boucle_lecture:
+loop_read:
     test rcx, rcx
-    jz fin
+    jz done
     mov al, [rsi]
     inc rsi
     dec rcx
-    call est_voyelle
+    call is_vowel
     add rbx, rax
-    jmp boucle_lecture
-fin:
+    jmp loop_read
+done:
     mov rax, rbx
-    call afficher_dec
+    call print_dec
     mov rax, 60
     xor rdi, rdi
     syscall
 
-est_voyelle:
+is_vowel:
     cmp al, 'a'
-    je rep1
+    je ret1
     cmp al, 'e'
-    je rep1
+    je ret1
     cmp al, 'i'
-    je rep1
+    je ret1
     cmp al, 'o'
-    je rep1
+    je ret1
     cmp al, 'u'
-    je rep1
+    je ret1
     cmp al, 'y'
-    je rep1
+    je ret1
     cmp al, 'A'
-    je rep1
+    je ret1
     cmp al, 'E'
-    je rep1
+    je ret1
     cmp al, 'I'
-    je rep1
+    je ret1
     cmp al, 'O'
-    je rep1
+    je ret1
     cmp al, 'U'
-    je rep1
+    je ret1
     cmp al, 'Y'
-    je rep1
+    je ret1
     xor rax, rax
     ret
-rep1:
+ret1:
     mov rax, 1
     ret
 
-afficher_dec:
+print_dec:
     test rax, rax
-    jnz conv_dec
-    mov byte [tampon], '0'
-    mov rsi, tampon
+    jnz conv
+    mov byte [buffer], '0'
+    mov rsi, buffer
     mov rdx, 1
-    jmp ecrire_dec
-conv_dec:
+    jmp wr
+conv:
     mov rbx, rax
-    lea rdi, [tampon+63]
-boucle_dec:
+    lea rdi, [buffer+63]
+c_loop:
     xor rdx, rdx
     mov rax, rbx
     mov rcx, 10
     div rcx
     mov rbx, rax
     add rdx, '0'
-    mov byte [tampon+63], dl
-    mov byte [rsi], dl
-    dec rsi
+    mov byte [rdi], dl
+    dec rdi
     test rbx, rbx
-    jnz boucle_dec
-    inc rsi
-    mov rax, tampon+64
-    sub rax, rsi
-copie_dec:
-    mov dl, [rsi]
-    mov [rdi], dl
+    jnz c_loop
     inc rdi
-    inc rsi
-    dec rax
-    jnz copie_dec
-ecrire_dec:
+    mov rsi, rdi
+    mov rdx, buffer+64
+    sub rdx, rdi
+wr:
     mov rax, 1
     mov rdi, 1
     syscall

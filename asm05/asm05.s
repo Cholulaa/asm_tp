@@ -2,32 +2,32 @@ section .text
     global _start
 
 _start:
-    mov rsi, [rsp+16]
-    test rsi, rsi
-    jz sortie_erreur
+    mov rsi, [rsp+16]  
+    test rsi, rsi      
+    jz exit_error      
 
-    call longueur_chaine
+    call string_length 
 
-    mov rax, 1
-    mov rdi, 1
+    mov rax, 1        
+    mov rdi, 1        
     syscall
 
-sortie_reussite:
-    mov rax, 60
-    xor rdi, rdi
+exit_success:
+    mov rax, 60       
+    xor rdi, rdi      
     syscall
 
-sortie_erreur:
-    mov rax, 60
-    mov rdi, 1
+exit_error:
+    mov rax, 60       
+    mov rdi, 1        
     syscall
 
-longueur_chaine:
-    xor rdx, rdx
-.boucle:
-    cmp byte [rsi+rdx], 0
-    je .fini
-    inc rdx
-    jmp .boucle
-.fini:
+string_length:
+    xor rdx, rdx      
+.loop:
+    cmp byte [rsi+rdx], 0 
+    je .done
+    inc rdx           
+    jmp .loop
+.done:
     ret

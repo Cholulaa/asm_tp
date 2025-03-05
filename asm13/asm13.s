@@ -1,5 +1,5 @@
 section .data
-    tampon: times 64 db 0
+buffer: times 64 db 0
 
 section .text
 global _start
@@ -7,13 +7,13 @@ global _start
 _start:
     xor rax, rax
     mov rdi, rax
-    mov rsi, tampon
+    mov rsi, buffer
     mov rdx, 64
     syscall
     mov rcx, rax
     test rcx, rcx
     jz pal
-    cmp byte [tampon+rcx-1], 10
+    cmp byte [buffer + rcx - 1], 10
     jne skip
     dec rcx
     cmp rcx, 0
@@ -22,16 +22,16 @@ skip:
     xor rsi, rsi
     mov rdi, rcx
     dec rdi
-boucle_cmp:
+loopcmp:
     cmp rsi, rdi
     jge pal
-    mov al, [tampon+rsi]
-    mov bl, [tampon+rdi]
+    mov al, [buffer + rsi]
+    mov bl, [buffer + rdi]
     cmp al, bl
     jne np
     inc rsi
     dec rdi
-    jmp boucle_cmp
+    jmp loopcmp
 pal:
     mov rax, 60
     xor rdi, rdi

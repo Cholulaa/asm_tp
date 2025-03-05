@@ -1,45 +1,54 @@
 section .data
-    messageUtilisateur db '1337', 0xA
-    entreeAttendue     db '42', 0
+    userMessage db '1337', 0xA
+    expectedInput db '42', 0
 
 section .text
     global _start
 
 _start:
-    mov rdi, [rsp+16]
+    ; Lire l'adresse du deuxième argument (argv[1])
+    mov rdi, [rsp + 8 * 2]  ; rsp + 8 (return address) + 8 (argc)
     test rdi, rdi
-    jz sortieEchec
-    mov rsi, entreeAttendue
-    call comparerChaines
+    jz exitFailure  ; Si aucun argument n'est fourni, sortir avec échec
+
+    ; Comparer l'argument fourni avec l'entrée attendue
+    mov rsi, expectedInput
+    call compareStrings
+
     test al, al
-    jnz sortieEchec
+    jnz exitFailure
+
+    ; Afficher le message si l'entrée est "42"
     mov rdi, 1
     mov rax, 1
-    mov rsi, messageUtilisateur
+    mov rsi, userMessage
     mov rdx, 5
     syscall
+
+    ; Sortir avec le code de statut 0
     xor edi, edi
-    mov rax, 60
+    mov eax, 60
     syscall
 
-sortieEchec:
+exitFailure:
+    ; Sortir avec le code de statut 1
     mov eax, 60
     mov edi, 1
     syscall
 
-comparerChaines:
+compareStrings:
     xor rax, rax
-suivant:
+.nextChar:
     mov al, [rsi]
     cmp al, byte [rdi]
-    jne nonEgale
+    jne .notequal
     test al, al
-    jz egale
+    jz .equal
     inc rsi
     inc rdi
-    jmp suivant
-egale:
+    jmp .nextChar
+.equal:
     ret
-nonEgale:
+.notequal:
     mov al, 1
     ret

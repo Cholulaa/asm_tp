@@ -1,116 +1,151 @@
 section .data
-    tampon db 20 dup(0)
+    buffer db 20 dup(0)
 
 section .text
     global _start
 
 _start:
+    ; Vérifier le nombre d'arguments
+    pop rcx         ; argc
+    cmp rcx, 3      ; prog + 2 args = 3
+    jne exit_error
+
+    ; Ignorer argv[0] (nom du programme)
     pop rcx
-    cmp rcx, 3
-    jne sortie_echec
-    pop rcx
+    
+    ; Premier argument
     pop rcx
     mov rdi, rcx
-    call chaine_vers_int
-    mov r12, rax
+    call atoi       ; Convertir en entier
+    mov r12, rax    ; Sauvegarder le premier nombre
+    
+    ; Deuxième argument
     pop rcx
     mov rdi, rcx
-    call chaine_vers_int
+    call atoi       ; Convertir en entier
+    
+    ; Additionner les nombres
     add rax, r12
+    
+    ; Convertir le résultat en chaîne et l'afficher
     mov rdi, rax
-    mov rsi, tampon
-    call entier_vers_chaine
-    mov rdi, tampon
-    call longueur_chaine
-    mov rdx, rax
-    mov rax, 1
-    mov rdi, 1
-    mov rsi, tampon
+    mov rsi, buffer
+    call itoa
+    
+    ; Calculer la longueur de la chaîne résultat
+    mov rdi, buffer
+    call strlen
+    
+    ; Afficher le résultat
+    mov rdx, rax    ; longueur
+    mov rax, 1      ; sys_write
+    mov rdi, 1      ; stdout
+    mov rsi, buffer
     syscall
-    mov [tampon], byte 0xA
+    
+    ; Ajouter un retour à la ligne
+    mov [buffer], byte 0xA
     mov rax, 1
     mov rdi, 1
-    mov rsi, tampon
+    mov rsi, buffer
     mov rdx, 1
     syscall
-    jmp sortie_reussite
+    
+    jmp exit_success
 
-chaine_vers_int:
+; Convertir ASCII vers entier
+atoi:
     push rbx
-    mov rsi, rdi
-    xor rax, rax
-    mov rbx, 1
+    mov rsi, rdi        ; Sauvegarder le pointeur
+    xor rax, rax        ; Initialiser le résultat
+    mov rbx, 1          ; Signe positif par défaut
+
+    ; Vérifier le signe
     cmp byte [rsi], '-'
-    jne .processus
-    inc rsi
-    neg rbx
-.processus:
+    jne .process_digits
+    inc rsi             ; Sauter le signe moins
+    neg rbx             ; Changer le signe
+
+.process_digits:
     movzx rcx, byte [rsi]
     test rcx, rcx
-    jz .fin
+    jz .done
+    
     cmp rcx, '0'
-    jb .fin
+    jb .done
     cmp rcx, '9'
-    ja .fin
+    ja .done
+    
     sub rcx, '0'
     imul rax, 10
     add rax, rcx
+    
     inc rsi
-    jmp .processus
-.fin:
-    imul rax, rbx
+    jmp .process_digits
+
+.done:
+    imul rax, rbx       ; Appliquer le signe
     pop rbx
     ret
 
-entier_vers_chaine:
+; Convertir entier vers ASCII
+itoa:
     push rbp
     mov rbp, rsp
     push rbx
+    
+    ; Vérifier si négatif
     test rdi, rdi
-    jns .positif
+    jns .positive
     neg rdi
     mov byte [rsi], '-'
     inc rsi
-.positif:
+    
+.positive:
     mov rax, rdi
     mov rbx, 10
-    mov rcx, 0
-.division:
+    mov rcx, 0          ; Compteur de chiffres
+    
+.divide_loop:
     xor rdx, rdx
     div rbx
-    push rdx
+    push rdx            ; Empiler le reste
     inc rcx
     test rax, rax
-    jnz .division
-.construction:
+    jnz .divide_loop
+    
+.build_string:
     pop rax
     add al, '0'
     mov [rsi], al
     inc rsi
     dec rcx
-    jnz .construction
-    mov byte [rsi], 0
+    jnz .build_string
+    
+    mov byte [rsi], 0   ; Null-terminer
+    
     pop rbx
     mov rsp, rbp
     pop rbp
     ret
 
-longueur_chaine:
+; Calculer la longueur d'une chaîne
+strlen:
     xor rax, rax
-.boucle:
-    cmp byte [rdi+rax], 0
-    je .fin_longueur
+.loop:
+    cmp byte [rdi + rax], 0
+    je .done
     inc rax
-    jmp .boucle
-.fin_longueur:
+    jmp .loop
+.done:
     ret
 
-sortie_reussite:
-    mov rax, 60
-    xor rdi, rdi
+exit_success:
+    mov rax, 60         ; sys_exit
+    xor rdi, rdi        ; status = 0
     syscall
 
-sortie_echec:
-    mov rax, 60
-    mov rdi, 1
+exit_error:
+    mov rax, 60         ; sys_exit
+    mov rdi, 1          ; status = 1
     syscall

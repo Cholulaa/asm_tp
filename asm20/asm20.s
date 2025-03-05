@@ -152,6 +152,7 @@ cmd_echo:
     jmp client_loop
 
 cmd_reverse:
+<<<<<<< HEAD
     ; Skip "REVERSE " (8 chars)
     mov rcx, r14
     sub rcx, 8          ; String length
@@ -174,6 +175,41 @@ cmd_reverse:
     mov rdx, r14
     sub rdx, 8
     syscall
+=======
+    ; Calculate length of string to reverse (after "REVERSE ")
+    mov rcx, r14
+    sub rcx, 8          ; Skip "REVERSE " prefix
+    
+    ; Clear destination buffer
+    push rcx
+    mov rcx, r14
+    lea rdi, [revbuf]
+    xor rax, rax
+    rep stosb
+    pop rcx
+    
+    ; Setup source and destination
+    lea rsi, [buffer + 8]  ; Source: after "REVERSE "
+    lea rdi, [revbuf]      ; Destination
+    add rsi, rcx          ; Point to end of source string
+    dec rsi
+
+.reverse_loop:
+    mov al, [rsi]         ; Get character from end
+    mov [rdi], al         ; Store at beginning
+    dec rsi               ; Move backward in source
+    inc rdi               ; Move forward in destination
+    loop .reverse_loop
+
+    ; Send reversed string
+    mov rax, 1           ; sys_write
+    mov rdi, r13         ; client socket
+    lea rsi, [revbuf]    ; reversed string
+    mov rdx, r14         ; length
+    sub rdx, 8           ; subtract "REVERSE " length
+    syscall
+    
+>>>>>>> parent of ed31b73 (cleaned up all the programs)
     ; Add newline
     mov rax, 1
     mov rdi, r13

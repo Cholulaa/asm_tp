@@ -1,5 +1,5 @@
-section .bss
-    tampon resb 32
+section .data
+buf: times 32 db 0
 
 section .text
 global _start
@@ -7,71 +7,71 @@ global _start
 _start:
     xor rax, rax
     mov rdi, rax
-    mov rsi, tampon
+    mov rsi, buf
     mov rdx, 32
     syscall
-    call conversion
+    call parse
     test rax, rax
-    js invalide
+    js invalid
     cmp rax, 2
-    jb pas_premier
+    jb not_prime
     mov rdi, rax
-    call est_premier
+    call is_prime
     test rax, rax
-    jz premier
-pas_premier:
+    jz prime
+not_prime:
     mov rax, 60
     mov rdi, 1
     syscall
-premier:
+prime:
     mov rax, 60
     xor rdi, rdi
     syscall
-invalide:
+invalid:
     mov rax, 60
     mov rdi, 2
     syscall
 
-conversion:
+parse:
     xor rax, rax
-boucle:
+p_loop:
     mov dl, [rsi]
     cmp dl, 0
-    je fini
+    je done
     cmp dl, 10
-    je fini
+    je done
     sub dl, '0'
-    jl erreur
+    jl err
     cmp dl, 9
-    jg erreur
+    jg err
     imul rax, rax, 10
     add rax, rdx
     inc rsi
-    jmp boucle
-fini:
+    jmp p_loop
+done:
     ret
-erreur:
+err:
     mov rax, -1
     ret
 
-est_premier:
+is_prime:
     mov rbx, rdi
     mov rcx, 2
-boucle_p:
+lp:
     mov rax, rcx
     mul rcx
     cmp rdx, 0
-    jne suite
+    jne p
     cmp rax, rbx
-    ja suite
+    ja p
     mov rax, rbx
     xor rdx, rdx
     div rcx
     test rdx, rdx
     jz np
     inc rcx
-    jmp boucle_p
-suite:
+    jmp lp
+p:
     xor rax, rax
     ret
 np:

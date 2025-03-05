@@ -1,9 +1,9 @@
 section .data
     message db '1337', 0xA
-    longueur_message equ $ - message
+    message_len equ $ - message
 
 section .bss
-    saisie resb 4
+    user_input resb 4
 
 section .text
     global _start
@@ -11,33 +11,33 @@ section .text
 _start:
     mov eax, 0
     mov edi, 0
-    mov rsi, saisie
+    mov rsi, user_input
     mov edx, 4
     syscall
 
-    mov byte [saisie + 3], 0
+    mov byte [user_input + 3], 0
 
-    movzx eax, byte [saisie]
+    movzx eax, byte [user_input]
     cmp eax, '4'
-    jne .non_trouve
-    movzx eax, byte [saisie + 1]
+    jne .not_found
+    movzx eax, byte [user_input + 1]
     cmp eax, '2'
-    jne .non_trouve
-    movzx eax, byte [saisie + 2]
+    jne .not_found
+    movzx eax, byte [user_input + 2]
     cmp eax, 0xA
-    jne .non_trouve
+    jne .not_found
 
     mov eax, 1
     mov edi, 1
     mov rsi, message
-    mov edx, longueur_message
+    mov edx, message_len
     syscall
 
     mov eax, 60
     xor edi, edi
     syscall
 
-.non_trouve:
+.not_found:
     mov eax, 60
     mov edi, 1
     syscall

@@ -1,68 +1,69 @@
 section .data
-    tampon db 64 dup(0)
+buffer: times 64 db 0
 
 section .text
-    global _start
+global _start
 
 _start:
     mov rsi, [rsp+16]
     test rsi, rsi
-    jz erreur
-    call conversion
+    jz error
+    call parse
     cmp rax, 2
-    jb .nul
+    jb .zero
     mov rbx, rax
     dec rbx
     mul rbx
     xor rdx, rdx
     mov rcx, 2
     div rcx
-    jmp .afficher
+    jmp .print
 
-.nul:
+.zero:
     xor rax, rax
 
-.afficher:
-    call afficher_resultat
+.print:
+    call print
     mov rax, 60
     xor rdi, rdi
     syscall
 
-erreur:
+error:
     mov rax, 60
     mov rdi, 1
     syscall
 
-conversion:
+parse:
     xor rax, rax
-.boucle_conversion:
+.parse_loop:
     mov dl, [rsi]
     test dl, dl
-    jz .fini_conversion
+    jz .done
     cmp dl, 10
-    je .fini_conversion
+    je .done
     sub dl, '0'
-    jl .fini_conversion
+    jl .done
     cmp dl, 9
-    jg .fini_conversion
+    jg .done
     imul rax, rax, 10
     add rax, rdx
     inc rsi
-    jmp .boucle_conversion
-.fini_conversion:
+    jmp .parse_loop
+.done:
     ret
 
-afficher_resultat:
+print:
     test rax, rax
-    jnz .convertir
-    mov byte [tampon], '0'
-    mov rsi, tampon
+    jnz .convert
+    mov byte [buffer], '0'
+    mov rsi, buffer
     mov rdx, 1
-    jmp .ecrire
-.convertir:
+    jmp .write
+
+.convert:
     mov rbx, rax
-    lea rdi, [tampon+63]
-.boucle_conversionChiffres:
+    lea rdi, [buffer+63]
+.conv_loop:
     xor rdx, rdx
     mov rax, rbx
     mov rcx, 10
@@ -72,12 +73,12 @@ afficher_resultat:
     mov byte [rdi], dl
     dec rdi
     test rbx, rbx
-    jnz .boucle_conversionChiffres
+    jnz .conv_loop
     inc rdi
     mov rsi, rdi
-    mov rdx, tampon+64
+    mov rdx, buffer+64
     sub rdx, rdi
-.ecrire:
+.write:
     mov rax, 1
     mov rdi, 1
     syscall
