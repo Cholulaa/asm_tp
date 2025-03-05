@@ -152,7 +152,6 @@ cmd_echo:
     jmp client_loop
 
 cmd_reverse:
-<<<<<<< HEAD
     ; Skip "REVERSE " (8 chars)
     mov rcx, r14
     sub rcx, 8          ; String length
@@ -175,7 +174,6 @@ cmd_reverse:
     mov rdx, r14
     sub rdx, 8
     syscall
-=======
     ; Calculate length of string to reverse (after "REVERSE ")
     mov rcx, r14
     sub rcx, 8          ; Skip "REVERSE " prefix
@@ -209,7 +207,6 @@ cmd_reverse:
     sub rdx, 8           ; subtract "REVERSE " length
     syscall
     
->>>>>>> parent of ed31b73 (cleaned up all the programs)
     ; Add newline
     mov rax, 1
     mov rdi, r13
