@@ -182,6 +182,9 @@ do_echo:
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> parent of 5e0415c (ver12)
 do_reverse:
     ; Get string after "REVERSE "
     lea rdi, [rel buffer + cmd_reverse_space_len]
@@ -193,6 +196,7 @@ do_reverse:
     lea rdi, [rel revbuf]
     mov rcx, r14
     call reverse_string
+<<<<<<< HEAD
     
     ; Send reversed string
     mov rdi, r12
@@ -216,23 +220,25 @@ cmd_reverse:
     std                    ; Set direction flag for reverse copy
     add rsi, rcx          ; Point to end of string
     dec rsi
+=======
+>>>>>>> parent of 5e0415c (ver12)
     
-.reverse_loop:
-    lodsb
-    stosb
-    loop .reverse_loop
-    cld                    ; Clear direction flag
-
     ; Send reversed string
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
     mov rax, 1
     mov rdi, r13
     lea rsi, [revbuf]
+=======
+    mov rdi, r12
+    lea rsi, [rel revbuf]
+>>>>>>> parent of 5e0415c (ver12)
     mov rdx, r14
-    sub rdx, 8
+    mov rax, 1
     syscall
     ; Add newline
+<<<<<<< HEAD
 >>>>>>> parent of 7fb20d0 (ver13)
     mov rax, 1
     mov rdi, r13
@@ -241,6 +247,8 @@ cmd_reverse:
     sub rdx, 8
     syscall
     ; Add newline
+=======
+>>>>>>> parent of 5e0415c (ver12)
     mov rdi, r12
     lea rsi, [rel newline]
     mov rdx, 1
