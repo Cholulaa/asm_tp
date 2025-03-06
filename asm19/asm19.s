@@ -91,4 +91,3 @@ exit_error:
     mov rdi, 1              ; exit(1)
     mov rax, 60             ; sys_exit
     syscall
- 
