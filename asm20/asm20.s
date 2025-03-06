@@ -181,6 +181,7 @@ do_echo:
     jmp client_loop
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 do_reverse:
     ; Get string after "REVERSE "
     lea rdi, [rel buffer + cmd_reverse_space_len]
@@ -204,6 +205,10 @@ do_reverse:
 cmd_reverse:
     ; Skip "REVERSE " (8 chars)
 >>>>>>> parent of 7fb20d0 (ver13)
+=======
+cmd_reverse:
+    ; Skip "REVERSE " (8 chars)
+>>>>>>> parent of 7fb20d0 (ver13)
     mov rcx, r14
     sub rcx, 8          ; String length
     lea rsi, [buffer + 8]  ; Source
@@ -219,6 +224,16 @@ cmd_reverse:
     cld                    ; Clear direction flag
 
     ; Send reversed string
+<<<<<<< HEAD
+=======
+    mov rax, 1
+    mov rdi, r13
+    lea rsi, [revbuf]
+    mov rdx, r14
+    sub rdx, 8
+    syscall
+    ; Add newline
+>>>>>>> parent of 7fb20d0 (ver13)
     mov rax, 1
     mov rdi, r13
     lea rsi, [revbuf]
