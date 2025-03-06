@@ -91,6 +91,9 @@ _start:
     syscall
 
 section .bss
+<<<<<<< HEAD
     tampon16 resb 16
  
+=======
+>>>>>>> parent of ed31b73 (cleaned up all the programs)
     buffer resb 16
