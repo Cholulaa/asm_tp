@@ -2,7 +2,7 @@ section .data
     listening_msg     db "⏳ Listening on port 4242", 10
     listening_msg_len equ $ - listening_msg
 
-    prompt            db "Type a command: "
+    prompt            db "Type a command: ", 0
     prompt_len        equ $ - prompt
 
     pong              db "PONG", 10
@@ -31,8 +31,13 @@ section .data
     server_addr:
         dw 2                    ; AF_INET
 <<<<<<< HEAD
+<<<<<<< HEAD
         dw 0x9210              ; Port 4242 in network byte order
         dd 0x0100007F          ; 127.0.0.1
+=======
+        dw 0x9210               ; Port 4242 in network byte order (4242 → 0x1092 → 0x9210)
+        dd 0x0100007F          ; 127.0.0.1 in network order
+>>>>>>> parent of 392cd45 (ver5)
         times 8 db 0
 =======
         dw 0x9210              ; Port 4242 (network byte order)
@@ -41,15 +46,19 @@ section .data
 >>>>>>> parent of ed31b73 (cleaned up all the programs)
 
 section .bss
-    buffer  resb 1024
-    revbuf  resb 1024
+    buffer  resb 1024           ; Buffer for client commands
+    revbuf  resb 1024           ; Buffer for reversed string
 
 section .text
 global _start
 
 _start:
+<<<<<<< HEAD
     ; Create socket
 <<<<<<< HEAD
+=======
+    ; Create TCP socket: socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+>>>>>>> parent of 392cd45 (ver5)
     mov rdi, 2               ; AF_INET
     mov rsi, 1               ; SOCK_STREAM
     mov rdx, 6               ; IPPROTO_TCP
@@ -57,9 +66,9 @@ _start:
     syscall
     test rax, rax
     js exit_error
-    mov rbx, rax             ; Save socket fd
+    mov rbx, rax             ; rbx = listening socket
 
-    ; Bind
+    ; Bind socket to server_addr
     mov rdi, rbx
 =======
     mov rax, 41          ; sys_socket
@@ -79,13 +88,15 @@ _start:
     mov rdx, 16
     mov rax, 49              ; sys_bind
     syscall
-    test rax, rax
-    js exit_error
 
+<<<<<<< HEAD
     ; Listen
 <<<<<<< HEAD
+=======
+    ; Listen on socket, backlog = 10
+>>>>>>> parent of 392cd45 (ver5)
     mov rdi, rbx
-    mov rsi, 10              ; backlog
+    mov rsi, 10
     mov rax, 50              ; sys_listen
 =======
     mov rax, 50          ; sys_listen
@@ -93,9 +104,8 @@ _start:
     mov rsi, 5           ; backlog
 >>>>>>> parent of ed31b73 (cleaned up all the programs)
     syscall
-    test rax, rax
-    js exit_error
 
+<<<<<<< HEAD
     ; Print listening message
 <<<<<<< HEAD
     mov rdi, 1
@@ -126,11 +136,31 @@ accept_loop:
     js accept_loop
 <<<<<<< HEAD
     mov r12, rax             ; Save client socket
+=======
+    ; Print listening message to stdout
+    mov rdi, 1               ; stdout
+    mov rax, 1               ; sys_write
+    lea rsi, [rel listening_msg]
+    mov rdx, listening_msg_len
+    syscall
 
-    ; Fork
-    mov rax, 57              ; sys_fork
+accept_loop:
+    ; Accept connection (blocking)
+    mov rdi, rbx           ; listening socket
+    xor rsi, rsi           ; NULL
+    xor rdx, rdx           ; NULL
+    mov rax, 43            ; sys_accept
+    syscall
+    test rax, rax
+    js accept_loop         ; if error, try again
+    mov r12, rax           ; r12 = client socket
+>>>>>>> parent of 392cd45 (ver5)
+
+    ; Fork to handle client concurrently
+    mov rax, 57            ; sys_fork
     syscall
     cmp rax, 0
+<<<<<<< HEAD
     je handle_client
     
     ; Parent closes client socket and loops
@@ -153,28 +183,37 @@ handle_client:
     ; Child: close server socket
     mov rax, 3
 >>>>>>> parent of ed31b73 (cleaned up all the programs)
+=======
+    je child_handler
+    ; Parent: close client socket and loop
+>>>>>>> parent of 392cd45 (ver5)
     mov rdi, r12
-    mov rax, 3
+    mov rax, 3             ; sys_close
     syscall
     jmp accept_loop
 
-handle_client:
-    ; Child closes listening socket
+child_handler:
+    ; In child, close the listening socket
     mov rdi, rbx
-    mov rax, 3
+    mov rax, 3             ; sys_close
     syscall
 
 client_loop:
     ; Send prompt
 <<<<<<< HEAD
+<<<<<<< HEAD
     mov rdi, r12
+=======
+    mov rdi, r12          ; client socket
+    mov rax, 1            ; sys_write
+>>>>>>> parent of 392cd45 (ver5)
     lea rsi, [rel prompt]
     mov rdx, prompt_len
-    mov rax, 1
     syscall
 
-    ; Read command
+    ; Read command from client into buffer
     mov rdi, r12
+<<<<<<< HEAD
 =======
     mov rax, 1
     mov rdi, r13
@@ -186,10 +225,13 @@ client_loop:
     mov rax, 0           ; sys_read
     mov rdi, r13
 >>>>>>> parent of ed31b73 (cleaned up all the programs)
+=======
+    mov rax, 0            ; sys_read
+>>>>>>> parent of 392cd45 (ver5)
     lea rsi, [rel buffer]
     mov rdx, 1024
-    xor rax, rax
     syscall
+<<<<<<< HEAD
     test rax, rax
 <<<<<<< HEAD
     jle close_client
@@ -220,52 +262,74 @@ client_loop:
 
     ; Remove newline
     dec r13
+=======
+    cmp rax, 0
+    jle close_client
+    mov r13, rax         ; number of bytes read
+>>>>>>> parent of 392cd45 (ver5)
     mov byte [buffer + r13], 0
 
-    ; Check commands
-    lea rdi, [rel buffer]
-    lea rsi, [rel cmd_ping]
-    mov rdx, cmd_ping_len
-    call strcmp
-    test rax, rax
-    jz do_ping
+    ; Remove trailing newline if present
+    mov rbx, r13
+    dec rbx
+    mov al, byte [buffer + rbx]
+    cmp al, 10
+    jne .skip_newline
+    mov byte [buffer + rbx], 0
+.skip_newline:
 
-    lea rdi, [rel buffer]
-    lea rsi, [rel cmd_echo]
-    mov rdx, cmd_echo_len
-    call strncmp
-    test rax, rax
-    jz do_echo
+    ; Compare with "PING" (first 4 characters)
+    mov rsi, buffer
+    mov rdi, cmd_ping
+    mov rcx, cmd_ping_len
+    call strcmp_n
+    cmp rax, 0
+    je do_ping
 
-    lea rdi, [rel buffer]
-    lea rsi, [rel cmd_reverse_space]
-    mov rdx, cmd_reverse_space_len
-    call strncmp
-    test rax, rax
-    jz do_reverse
+    ; Compare with "ECHO " (first 5 characters)
+    mov rsi, buffer
+    mov rdi, cmd_echo
+    mov rcx, cmd_echo_len
+    call strcmp_n
+    cmp rax, 0
+    je do_echo
 
-    lea rdi, [rel buffer]
-    lea rsi, [rel cmd_exit]
-    mov rdx, cmd_exit_len
-    call strcmp
-    test rax, rax
-    jz do_exit
+    ; Compare with "REVERSE " (first 8 characters)
+    mov rsi, buffer
+    mov rdi, cmd_reverse_space
+    mov rcx, cmd_reverse_space_len
+    call strcmp_n
+    cmp rax, 0
+    je do_reverse
+
+    ; Compare with "EXIT" (first 4 characters)
+    mov rsi, buffer
+    mov rdi, cmd_exit
+    mov rcx, cmd_exit_len
+    call strcmp_n
+    cmp rax, 0
+    je do_exit
 
     jmp client_loop
 
 do_ping:
     mov rdi, r12
+    mov rax, 1            ; sys_write
     lea rsi, [rel pong]
     mov rdx, pong_len
 <<<<<<< HEAD
+<<<<<<< HEAD
     mov rax, 1
+=======
+>>>>>>> parent of 392cd45 (ver5)
     syscall
     jmp client_loop
 
 do_echo:
-    ; Skip "ECHO " prefix
-    lea rdi, [rel buffer + cmd_echo_len]
+    ; Echo text after "ECHO "
+    lea rsi, [buffer + cmd_echo_len]
     call strlen
+<<<<<<< HEAD
     mov rdx, rax
     mov rdi, r12
     lea rsi, [rel buffer + cmd_echo_len]
@@ -291,6 +355,13 @@ cmd_echo:
     lea rsi, [rel newline]
     mov rdx, 1
     mov rax, 1
+=======
+    mov r14, rax         ; r14 = length of text
+    mov rdi, r12         ; client socket
+    mov rax, 1           ; sys_write
+    lea rsi, [buffer + cmd_echo_len]
+    mov rdx, r14
+>>>>>>> parent of 392cd45 (ver5)
     syscall
     jmp client_loop
 
@@ -300,24 +371,36 @@ cmd_echo:
 =======
 >>>>>>> parent of 5e0415c (ver12)
 do_reverse:
-    ; Get string after "REVERSE "
-    lea rdi, [rel buffer + cmd_reverse_space_len]
+    ; Reverse text after "REVERSE "
+    lea rsi, [buffer + cmd_reverse_space_len]
+    mov rbx, r13
+    dec rbx
+    mov al, byte [buffer + rbx]
+    cmp al, 10
+    jne reverse_start
+    mov byte [buffer + rbx], 0
+reverse_start:
+    lea rdi, [buffer + cmd_reverse_space_len]
     call strlen
-    mov r14, rax              ; Save length
-    
-    ; Copy to revbuf in reverse
-    lea rsi, [rel buffer + cmd_reverse_space_len]
+    mov r14, rax         ; r14 = length of text
+    lea rsi, [buffer + cmd_reverse_space_len]
     lea rdi, [rel revbuf]
     mov rcx, r14
+<<<<<<< HEAD
     call reverse_string
 <<<<<<< HEAD
     
     ; Send reversed string
+=======
+    call reverse_copy
+    ; Write reversed text and newline to client
+>>>>>>> parent of 392cd45 (ver5)
     mov rdi, r12
+    mov rax, 1
     lea rsi, [rel revbuf]
     mov rdx, r14
-    mov rax, 1
     syscall
+<<<<<<< HEAD
     ; Calculate length of string to reverse (after "REVERSE ")
 =======
 cmd_reverse:
@@ -365,32 +448,82 @@ cmd_reverse:
     ; Add newline
 =======
 >>>>>>> parent of 5e0415c (ver12)
+=======
+>>>>>>> parent of 392cd45 (ver5)
     mov rdi, r12
+    mov rax, 1
     lea rsi, [rel newline]
     mov rdx, 1
-    mov rax, 1
     syscall
     jmp client_loop
 
 do_exit:
     mov rdi, r12
+    mov rax, 1
     lea rsi, [rel goodbye]
     mov rdx, goodbye_len
-    mov rax, 1
     syscall
+    jmp close_client
 
 close_client:
     mov rdi, r12
-    mov rax, 3               ; sys_close
+    mov rax, 3            ; sys_close
     syscall
-    xor rdi, rdi
-    mov rax, 60              ; sys_exit
+    mov rdi, 0
+    mov rax, 60           ; sys_exit
     syscall
+
+strcmp_n:
+    push rcx
+.cmp_loop:
+    cmp rcx, 0
+    je .equal
+    mov al, byte [rsi]
+    mov bl, byte [rdi]
+    cmp al, bl
+    jne .diff
+    inc rsi
+    inc rdi
+    dec rcx
+    jmp .cmp_loop
+.equal:
+    xor rax, rax
+    pop rcx
+    ret
+.diff:
+    mov rax, 1
+    pop rcx
+    ret
+
+strlen:
+    xor rcx, rcx
+.str_loop:
+    cmp byte [rdi+rcx], 0
+    je .done
+    inc rcx
+    jmp .str_loop
+.done:
+    mov rax, rcx
+    ret
+
+reverse_copy:
+    mov rbx, rcx
+    dec rbx
+.rev_loop:
+    xor rdx, rdx
+    mov al, byte [rsi+rbx]
+    mov byte [rdi], al
+    inc rdi
+    dec rbx
+    cmp rbx, -1
+    jne .rev_loop
+    ret
 
 exit_error:
     mov rdi, 1
     mov rax, 60
     syscall
+<<<<<<< HEAD
 
 ; String comparison
 strcmp:
@@ -520,3 +653,5 @@ exit_error:
     mov rdi, 1
     syscall
 >>>>>>> parent of ed31b73 (cleaned up all the programs)
+=======
+>>>>>>> parent of 392cd45 (ver5)
